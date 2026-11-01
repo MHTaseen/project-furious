@@ -1,0 +1,281 @@
+[
+  {
+    "id": "prod-f4dc54af-a3f6-4a80-adad-36bc9a5f0081",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793461010628-8ca69680.jpg"
+    ],
+    "name": "RPD Front Disk R15",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": false,
+      "descriptionLabel": "Description",
+      "descriptionVisible": false
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:33:08.889Z",
+    "updatedAt": "2026-10-31T15:36:50.631Z"
+  },
+  {
+    "id": "prod-b84bcd67-2d6d-45a8-aa22-0b389745f8ab",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793460788903-55ac8d2c.jpg"
+    ],
+    "name": "DND Rare Disk",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": false,
+      "descriptionLabel": "Description",
+      "descriptionVisible": false
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:33:08.889Z",
+    "updatedAt": "2026-10-31T15:33:08.889Z"
+  },
+  {
+    "id": "prod-f24afbf6-9be2-49b4-8abb-d2efab368034",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793460143231-0feab55b.jpg"
+    ],
+    "name": "TDR Break Hose",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": false,
+      "descriptionLabel": "Description",
+      "descriptionVisible": false
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:22:23.230Z",
+    "updatedAt": "2026-10-31T15:22:23.230Z"
+  },
+  {
+    "id": "prod-7ecc8c23-e864-4c39-af13-954f8b594100",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793460144384-4fdd7259.jpg"
+    ],
+    "name": "Adeline Front Caliper 4 Pot",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": true,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": true,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": true,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": true,
+      "descriptionLabel": "Description",
+      "descriptionVisible": true
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:22:23.230Z",
+    "updatedAt": "2026-10-31T15:25:45.560Z"
+  },
+  {
+    "id": "prod-6b36f145-cf43-415d-b41c-afad093ddb0b",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793460144393-d1b9cf52.jpg"
+    ],
+    "name": "TDR Rare Disk GSXR",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": false,
+      "descriptionLabel": "Description",
+      "descriptionVisible": false
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:22:23.230Z",
+    "updatedAt": "2026-10-31T15:25:56.155Z"
+  },
+  {
+    "id": "prod-5f252d56-72ee-4779-b502-1989699aed9c",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793460144416-e18316c7.jpg"
+    ],
+    "name": "Hel Rare Hose Pipe",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": false,
+      "descriptionLabel": "Description",
+      "descriptionVisible": false
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:22:23.230Z",
+    "updatedAt": "2026-10-31T15:26:09.352Z"
+  },
+  {
+    "id": "prod-c7e8e56a-b4ad-47bd-b127-f1e1cdd68ea7",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793459914552-65ab4838.jpg"
+    ],
+    "name": "DND Front Disk R15",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "DND D06",
+    "description": "Break",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": true,
+      "descriptionLabel": "Description",
+      "descriptionVisible": true
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:18:34.548Z",
+    "updatedAt": "2026-10-31T15:18:34.548Z"
+  },
+  {
+    "id": "prod-8f0dab0d-af87-47a1-b1de-770deca7a5f9",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793459914562-ca81c472.jpg"
+    ],
+    "name": "TDR Front Hose 850mm",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": false,
+      "descriptionLabel": "Description",
+      "descriptionVisible": false
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:18:34.548Z",
+    "updatedAt": "2026-10-31T15:18:34.548Z"
+  },
+  {
+    "id": "prod-0d695992-8005-49de-93c4-6c056103ecf5",
+    "categorySlug": "breaking-system",
+    "categoryLabel": "BREAKING SYSTEM",
+    "images": [
+      "/uploads/products/prod-1793459914581-d59689d6.jpg"
+    ],
+    "name": "RCB S1 Master Cylinder  & Clutch",
+    "productCode": "",
+    "uidNumber": "",
+    "modelNumber": "",
+    "description": "",
+    "price": "",
+    "fieldSettings": {
+      "nameLabel": "Product Name",
+      "nameVisible": true,
+      "priceLabel": "Price",
+      "priceVisible": false,
+      "productCodeLabel": "Product Code",
+      "productCodeVisible": false,
+      "uidNumberLabel": "UID Number",
+      "uidNumberVisible": false,
+      "modelNumberLabel": "Model Number",
+      "modelNumberVisible": false,
+      "descriptionLabel": "Description",
+      "descriptionVisible": false
+    },
+    "customFields": [],
+    "createdAt": "2026-10-31T15:18:34.548Z",
+    "updatedAt": "2026-10-31T15:18:34.548Z"
+  }
+]

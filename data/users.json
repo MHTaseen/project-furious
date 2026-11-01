@@ -1,0 +1,24 @@
+[
+  {
+    "id": "admin-mridul-1",
+    "name": "Mridul",
+    "phone": "01836585258",
+    "address": "Race Course",
+    "email": "mridul@gmail.com",
+    "passwordHash": "04260ae68b2692d4955b5d4265215f63:2373b9150094873e7b80ccb51efee7f88858da5d34e8d09b6d7a2add1f956e373fdb2ff24cb8d84c2115d71826c030a6b37f7f4982cdb9992bbb7769951013e7",
+    "role": "admin",
+    "createdAt": "2026-10-29T15:46:20.133Z",
+    "passwordPlain": "123456"
+  },
+  {
+    "id": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+    "name": "Mahmudul Hassan Taseen",
+    "phone": "01600332120",
+    "address": "1126, Jhawtola, Cumilla",
+    "email": "mahmudulhasantahseen@gmail.com",
+    "passwordHash": "9f1abf0746dd2d32c5047f444dae4eab:97c313e0eafbd5f1b6ba7c9c16f10e6865f133d1231177e539e759a3a910dff45429534f5716abbb36e3be5f4011dbe546f676e5cef607f50c975d35222451c8",
+    "passwordPlain": "123456",
+    "role": "customer",
+    "createdAt": "2026-10-31T14:58:51.875Z"
+  }
+]

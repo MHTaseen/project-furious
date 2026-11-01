@@ -1,0 +1,54 @@
+{
+  "about": {
+    "tagline": "Get Set Go — Premium Moto Gear, Lubricants & Performance Parts",
+    "description": "FURIOUS MOTO SHOP is your trusted destination for 100% genuine motorcycle helmets, synthetic engine oils, oil additives, LED fog & head lights, riding safety guards, stock parts, aerodynamic body kits, security systems, and custom modification accessories.",
+    "mission": "To empower every rider with authentic, high-performance motorcycle parts and safety gear backed by reliable service and fair pricing.",
+    "vision": "To be the most trusted and comprehensive motorcycle performance & accessories hub for riders nationwide.",
+    "whyChooseUs": "100% Authentic Global Brands • Certified Riding Safety Gear • Expert Modification Advice • Dedicated Customer Support",
+    "establishedYear": "2024",
+    "owners": [
+      {
+        "id": "owner-1",
+        "image": "",
+        "name": "Mridul",
+        "designation": "Co-Founder & Managing Owner",
+        "email": "mridul@gmail.com"
+      },
+      {
+        "id": "owner-2",
+        "image": "",
+        "name": "Owner 2",
+        "designation": "Co-Founder & Operations Head",
+        "email": "owner2@furiousmotoshop.com"
+      },
+      {
+        "id": "owner-3",
+        "image": "",
+        "name": "Owner 3",
+        "designation": "Co-Founder & Finance Director",
+        "email": "owner3@furiousmotoshop.com"
+      },
+      {
+        "id": "owner-4",
+        "image": "",
+        "name": "Owner 4",
+        "designation": "Co-Founder & Technical Director",
+        "email": "owner4@furiousmotoshop.com"
+      }
+    ]
+  },
+  "contact": {
+    "shopName": "FURIOUS MOTO SHOP",
+    "address": "Race Course",
+    "primaryPhone": "01836585258",
+    "secondaryPhone": "",
+    "whatsapp": "01836585258",
+    "email": "mridul@gmail.com",
+    "supportEmail": "support@furiousmotoshop.com",
+    "businessHours": "Saturday – Thursday: 10:00 AM – 10:00 PM (Friday: 3:00 PM – 10:00 PM)",
+    "facebookUrl": "https://facebook.com/furiousmotoshop",
+    "instagramUrl": "https://instagram.com/furiousmotoshop",
+    "mapLocation": "Race Course",
+    "additionalNote": "Feel free to call, WhatsApp, or visit our showroom for genuine parts, helmets, engine oils, and bike modification consultations."
+  }
+}

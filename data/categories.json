@@ -1,0 +1,67 @@
+[
+  {
+    "id": "cat-1",
+    "label": "Helmets",
+    "slug": "helmets"
+  },
+  {
+    "id": "cat-2",
+    "label": "Engine Oil",
+    "slug": "engine-oil"
+  },
+  {
+    "id": "cat-3",
+    "label": "Fog Lights",
+    "slug": "fog-lights"
+  },
+  {
+    "id": "cat-4",
+    "label": "Head Lights",
+    "slug": "head-lights"
+  },
+  {
+    "id": "cat-5",
+    "label": "Wind Breakers",
+    "slug": "wind-breakers"
+  },
+  {
+    "id": "cat-6",
+    "label": "Gloves",
+    "slug": "gloves"
+  },
+  {
+    "id": "cat-7",
+    "label": "Safety Guards",
+    "slug": "safety-guards"
+  },
+  {
+    "id": "cat-8",
+    "label": "Oil Additives",
+    "slug": "oil-additives"
+  },
+  {
+    "id": "cat-9",
+    "label": "Stock Parts",
+    "slug": "stock-parts"
+  },
+  {
+    "id": "cat-10",
+    "label": "Body Kits",
+    "slug": "body-kits"
+  },
+  {
+    "id": "cat-11",
+    "label": "Security System",
+    "slug": "security-system"
+  },
+  {
+    "id": "cat-12",
+    "label": "Modification Items",
+    "slug": "modification-items"
+  },
+  {
+    "id": "cat-b13b7c41-d697-4d73-8a0e-a9103777a123",
+    "label": "BREAKING SYSTEM",
+    "slug": "breaking-system"
+  }
+]
