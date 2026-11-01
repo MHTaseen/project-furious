@@ -263,19 +263,30 @@
     "fieldSettings": {
       "nameLabel": "Product Name",
       "nameVisible": true,
+      "nameDeleted": false,
       "priceLabel": "Price",
       "priceVisible": false,
+      "priceDeleted": false,
+      "stockQuantityLabel": "Available Stock",
+      "stockQuantityVisible": true,
+      "stockQuantityDeleted": false,
       "productCodeLabel": "Product Code",
       "productCodeVisible": false,
+      "productCodeDeleted": false,
       "uidNumberLabel": "UID Number",
       "uidNumberVisible": false,
+      "uidNumberDeleted": false,
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": false,
+      "modelNumberDeleted": false,
       "descriptionLabel": "Description",
-      "descriptionVisible": false
+      "descriptionVisible": false,
+      "descriptionDeleted": false
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:18:34.548Z",
-    "updatedAt": "2026-10-31T15:18:34.548Z"
+    "updatedAt": "2026-11-01T15:45:12.874Z",
+    "brand": "RCB",
+    "stockQuantity": 0
   }
 ]

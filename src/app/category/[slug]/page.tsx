@@ -234,24 +234,34 @@ export default function CategoryPage({
               ...(product.fieldSettings || {}),
             };
             const showName =
-              Boolean(product.name) && (isAdmin || fs.nameVisible !== false);
+              !fs.nameDeleted &&
+              Boolean(product.name) &&
+              (isAdmin || fs.nameVisible !== false);
             const showPrice =
-              Boolean(product.price) && (isAdmin || fs.priceVisible !== false);
-            const showStock = isAdmin || fs.stockQuantityVisible !== false;
+              !fs.priceDeleted &&
+              Boolean(product.price) &&
+              (isAdmin || fs.priceVisible !== false);
+            const showStock =
+              !fs.stockQuantityDeleted &&
+              (isAdmin || fs.stockQuantityVisible !== false);
             const currentStock =
               typeof product.stockQuantity === "number"
                 ? Math.max(0, product.stockQuantity)
                 : 0;
             const showCode =
+              !fs.productCodeDeleted &&
               Boolean(product.productCode) &&
               (isAdmin || fs.productCodeVisible !== false);
             const showUid =
+              !fs.uidNumberDeleted &&
               Boolean(product.uidNumber) &&
               (isAdmin || fs.uidNumberVisible !== false);
             const showModel =
+              !fs.modelNumberDeleted &&
               Boolean(product.modelNumber) &&
               (isAdmin || fs.modelNumberVisible !== false);
             const showDesc =
+              !fs.descriptionDeleted &&
               Boolean(product.description) &&
               (isAdmin || fs.descriptionVisible !== false);
             const visibleCustomFields = (product.customFields || []).filter(
@@ -415,26 +425,34 @@ export default function CategoryPage({
             ...(selectedProduct.fieldSettings || {}),
           };
           const showName =
+            !fs.nameDeleted &&
             Boolean(selectedProduct.name) &&
             (isAdmin || fs.nameVisible !== false);
           const showPrice =
+            !fs.priceDeleted &&
             Boolean(selectedProduct.price) &&
             (isAdmin || fs.priceVisible !== false);
-          const showStock = isAdmin || fs.stockQuantityVisible !== false;
+          const showStock =
+            !fs.stockQuantityDeleted &&
+            (isAdmin || fs.stockQuantityVisible !== false);
           const selectedStock =
             typeof selectedProduct.stockQuantity === "number"
               ? Math.max(0, selectedProduct.stockQuantity)
               : 0;
           const showCode =
+            !fs.productCodeDeleted &&
             Boolean(selectedProduct.productCode) &&
             (isAdmin || fs.productCodeVisible !== false);
           const showUid =
+            !fs.uidNumberDeleted &&
             Boolean(selectedProduct.uidNumber) &&
             (isAdmin || fs.uidNumberVisible !== false);
           const showModel =
+            !fs.modelNumberDeleted &&
             Boolean(selectedProduct.modelNumber) &&
             (isAdmin || fs.modelNumberVisible !== false);
           const showDesc =
+            !fs.descriptionDeleted &&
             Boolean(selectedProduct.description) &&
             (isAdmin || fs.descriptionVisible !== false);
           const visibleCustomFields = (

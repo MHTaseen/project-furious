@@ -14,7 +14,9 @@ export default function InteractiveMarquee({
   const trackRef = useRef<HTMLDivElement | null>(null);
   const offsetRef = useRef<number>(0);
   const initializedRef = useRef<boolean>(false);
+  const isPointerDownRef = useRef<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
+  const startClientXRef = useRef<number>(0);
   const lastClientXRef = useRef<number>(0);
   const wheelPauseUntilRef = useRef<number>(0);
   const [isGrabbing, setIsGrabbing] = useState(false);
@@ -60,14 +62,29 @@ export default function InteractiveMarquee({
   }, [speedPxPerSec]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    isDraggingRef.current = true;
-    setIsGrabbing(true);
+    isPointerDownRef.current = true;
+    isDraggingRef.current = false;
+    startClientXRef.current = e.clientX;
     lastClientXRef.current = e.clientX;
-    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return;
+    if (!isPointerDownRef.current) return;
+
+    if (!isDraggingRef.current) {
+      if (Math.abs(e.clientX - startClientXRef.current) > 5) {
+        isDraggingRef.current = true;
+        setIsGrabbing(true);
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // Ignore if pointer capture is unavailable
+        }
+      } else {
+        return;
+      }
+    }
+
     const deltaX = e.clientX - lastClientXRef.current;
     lastClientXRef.current = e.clientX;
 
@@ -80,13 +97,16 @@ export default function InteractiveMarquee({
   };
 
   const handlePointerUpOrCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
-    setIsGrabbing(false);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignore if pointer capture was already released
+    if (!isPointerDownRef.current) return;
+    isPointerDownRef.current = false;
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      setIsGrabbing(false);
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Ignore if pointer capture was already released
+      }
     }
   };
 

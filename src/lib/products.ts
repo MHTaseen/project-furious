@@ -12,41 +12,56 @@ export interface CustomProductField {
 export interface ProductFieldSettings {
   nameLabel: string;
   nameVisible: boolean;
+  nameDeleted?: boolean;
   priceLabel: string;
   priceVisible: boolean;
+  priceDeleted?: boolean;
   stockQuantityLabel?: string;
   stockQuantityVisible?: boolean;
+  stockQuantityDeleted?: boolean;
   productCodeLabel: string;
   productCodeVisible: boolean;
+  productCodeDeleted?: boolean;
   uidNumberLabel: string;
   uidNumberVisible: boolean;
+  uidNumberDeleted?: boolean;
   modelNumberLabel: string;
   modelNumberVisible: boolean;
+  modelNumberDeleted?: boolean;
   descriptionLabel: string;
   descriptionVisible: boolean;
+  descriptionDeleted?: boolean;
 }
 
 export const DEFAULT_FIELD_SETTINGS: ProductFieldSettings = {
   nameLabel: "Product Name",
   nameVisible: true,
+  nameDeleted: false,
   priceLabel: "Price",
   priceVisible: true,
+  priceDeleted: false,
   stockQuantityLabel: "Stock Quantity",
   stockQuantityVisible: true,
+  stockQuantityDeleted: false,
   productCodeLabel: "Product Code",
   productCodeVisible: true,
+  productCodeDeleted: false,
   uidNumberLabel: "UID Number",
   uidNumberVisible: true,
+  uidNumberDeleted: false,
   modelNumberLabel: "Model Number",
   modelNumberVisible: true,
+  modelNumberDeleted: false,
   descriptionLabel: "Description",
   descriptionVisible: true,
+  descriptionDeleted: false,
 };
 
 export interface ProductRecord {
   id: string;
   categorySlug: string;
   categoryLabel: string;
+  brand?: string;
   images: string[];
   name: string;
   productCode: string;

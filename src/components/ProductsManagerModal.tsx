@@ -3,6 +3,16 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 
+export const BRAND_OPTIONS = [
+  "Liqui Moly",
+  "Motul",
+  "Repsol",
+  "Motocare",
+  "RCB",
+  "Flamingo",
+  "Faito",
+];
+
 export interface CustomProductField {
   id: string;
   label: string;
@@ -13,41 +23,56 @@ export interface CustomProductField {
 export interface ProductFieldSettings {
   nameLabel: string;
   nameVisible: boolean;
+  nameDeleted?: boolean;
   priceLabel: string;
   priceVisible: boolean;
+  priceDeleted?: boolean;
   stockQuantityLabel?: string;
   stockQuantityVisible?: boolean;
+  stockQuantityDeleted?: boolean;
   productCodeLabel: string;
   productCodeVisible: boolean;
+  productCodeDeleted?: boolean;
   uidNumberLabel: string;
   uidNumberVisible: boolean;
+  uidNumberDeleted?: boolean;
   modelNumberLabel: string;
   modelNumberVisible: boolean;
+  modelNumberDeleted?: boolean;
   descriptionLabel: string;
   descriptionVisible: boolean;
+  descriptionDeleted?: boolean;
 }
 
 export const DEFAULT_FIELD_SETTINGS: ProductFieldSettings = {
   nameLabel: "Product Name",
   nameVisible: true,
+  nameDeleted: false,
   priceLabel: "Price",
   priceVisible: true,
+  priceDeleted: false,
   stockQuantityLabel: "Available Stock",
   stockQuantityVisible: true,
+  stockQuantityDeleted: false,
   productCodeLabel: "Product Code",
   productCodeVisible: true,
+  productCodeDeleted: false,
   uidNumberLabel: "UID Number",
   uidNumberVisible: true,
+  uidNumberDeleted: false,
   modelNumberLabel: "Model Number",
   modelNumberVisible: true,
+  modelNumberDeleted: false,
   descriptionLabel: "Description",
   descriptionVisible: true,
+  descriptionDeleted: false,
 };
 
 export interface ProductItem {
   id: string;
   categorySlug: string;
   categoryLabel: string;
+  brand?: string;
   images: string[];
   name: string;
   productCode: string;
@@ -71,6 +96,7 @@ interface CategoryOption {
 interface ProductDraft {
   draftId: string;
   categorySlug: string;
+  brand: string;
   images: string[];
   name: string;
   productCode: string;
@@ -89,12 +115,18 @@ interface ProductsManagerModalProps {
   /** If provided, scopes the modal to this specific category (opened from Category Drawer) */
   categorySlug?: string | null;
   categoryLabel?: string | null;
+  /** If provided, pre-fills the Brand field when adding products from a Brand popup */
+  defaultBrand?: string | null;
 }
 
-function createEmptyDraft(defaultCategorySlug: string): ProductDraft {
+function createEmptyDraft(
+  defaultCategorySlug: string,
+  defaultBrand: string = ""
+): ProductDraft {
   return {
     draftId: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     categorySlug: defaultCategorySlug,
+    brand: defaultBrand,
     images: [],
     name: "",
     productCode: "",
@@ -113,9 +145,10 @@ export default function ProductsManagerModal({
   onClose,
   categorySlug = null,
   categoryLabel = null,
+  defaultBrand = null,
 }: ProductsManagerModalProps) {
   const [activeTab, setActiveTab] = useState<"form" | "list">(
-    categorySlug ? "form" : "list"
+    categorySlug || defaultBrand ? "form" : "list"
   );
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -136,16 +169,29 @@ export default function ProductsManagerModal({
   // Custom step amount for adding or deducting stock per product
   const [stockStepMap, setStockStepMap] = useState<Record<string, string>>({});
 
+  // Enlarged image popup state when Admin clicks an uploaded image in the form to inspect it for product description
+  const [enlargedDraftImage, setEnlargedDraftImage] = useState<{
+    draftId: string;
+    imageIndex: number;
+  } | null>(null);
+  const [enlargedZoomed, setEnlargedZoomed] = useState<boolean>(false);
+
+  // Studio Clean in-progress tracking state (key: `${draftId}-${imageIndex}`)
+  const [cleaningMap, setCleaningMap] = useState<Record<string, boolean>>({});
+  const [cleaningMsg, setCleaningMsg] = useState<string | null>(null);
+
   // Multi-product drafts array so Admin can add as many products as they want in a single time
   const [drafts, setDrafts] = useState<ProductDraft[]>([
-    createEmptyDraft(categorySlug || ""),
+    createEmptyDraft(categorySlug || "", defaultBrand || ""),
   ]);
 
   const resetForm = (defaultCatSlug?: string) => {
     setEditingProduct(null);
+    setEnlargedDraftImage(null);
+    setEnlargedZoomed(false);
     const resolvedCat =
       defaultCatSlug ?? categorySlug ?? (categories[0]?.slug || "");
-    setDrafts([createEmptyDraft(resolvedCat)]);
+    setDrafts([createEmptyDraft(resolvedCat, defaultBrand || "")]);
   };
 
   const loadData = async () => {
@@ -189,12 +235,14 @@ export default function ProductsManagerModal({
       setSuccessMsg(null);
       setViewingProduct(null);
       setEditingProduct(null);
+      setEnlargedDraftImage(null);
+      setEnlargedZoomed(false);
       setFilterCategory("all");
-      setActiveTab(categorySlug ? "form" : "list");
+      setActiveTab(categorySlug || defaultBrand ? "form" : "list");
       resetForm(categorySlug || undefined);
       loadData();
     }
-  }, [isOpen, categorySlug]);
+  }, [isOpen, categorySlug, defaultBrand]);
 
   if (!isOpen) return null;
 
@@ -214,7 +262,12 @@ export default function ProductsManagerModal({
       drafts[drafts.length - 1]?.categorySlug ||
       categories[0]?.slug ||
       "";
-    setDrafts((prev) => [...prev, createEmptyDraft(defaultCat)]);
+    const inheritedBrand =
+      defaultBrand || drafts[drafts.length - 1]?.brand || "";
+    setDrafts((prev) => [
+      ...prev,
+      createEmptyDraft(defaultCat, inheritedBrand),
+    ]);
   };
 
   const handleDuplicateDraft = (draft: ProductDraft) => {
@@ -267,6 +320,62 @@ export default function ProductsManagerModal({
       ...d,
       images: d.images.filter((_, idx) => idx !== imageIdx),
     }));
+  };
+
+  /**
+   * Deeply cleans an uploaded image using the local AI Studio Engine:
+   * - Segments & removes dirty/cluttered backgrounds
+   * - Strips watermarks & perimeter text
+   * - Auto-detects transparency:
+   *     • If transparent (visor, fluid, glass) -> mounts on sleek dark glossy studio backdrop
+   *     • If solid (parts, oils, accessories) -> mounts on clean shiny white studio backdrop with soft floor shadow
+   */
+  const handleAutoCleanStudioImage = async (
+    draftId: string,
+    imageIdx: number,
+    bgMode: "auto" | "white" | "dark" | "transparent" = "auto",
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation();
+    const draft = drafts.find((d) => d.draftId === draftId);
+    if (!draft || !draft.images[imageIdx]) return;
+
+    const key = `${draftId}-${imageIdx}`;
+    setCleaningMap((prev) => ({ ...prev, [key]: true }));
+    setCleaningMsg(
+      "AI Studio is isolating product, removing background & watermarks, and creating polished studio backdrop..."
+    );
+
+    try {
+      const res = await fetch("/api/image-studio-clean", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: draft.images[imageIdx],
+          backgroundMode: bgMode,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.cleanedImage) {
+        setError(data.error || "Failed to studio clean image.");
+      } else {
+        updateDraft(draftId, (d) => {
+          const nextImages = [...d.images];
+          nextImages[imageIdx] = data.cleanedImage;
+          return { ...d, images: nextImages };
+        });
+        const modeUsed = data.backgroundUsed || (data.isTranslucent ? "shiny dark" : "shiny white");
+        setSuccessMsg(
+          `Image cleaned successfully! Applied ${modeUsed} studio backdrop (${data.isTranslucent ? "Transparent Product Detected" : "Solid Product Detected"}).`
+        );
+      }
+    } catch {
+      setError("Network or processing error while studio cleaning image.");
+    } finally {
+      setCleaningMap((prev) => ({ ...prev, [key]: false }));
+      setCleaningMsg(null);
+    }
   };
 
   const handleUpdateDraftFieldSetting = <K extends keyof ProductFieldSettings>(
@@ -323,11 +432,14 @@ export default function ProductsManagerModal({
     setError(null);
     setSuccessMsg(null);
     setViewingProduct(null);
+    setEnlargedDraftImage(null);
+    setEnlargedZoomed(false);
     setEditingProduct(product);
     setDrafts([
       {
         draftId: `edit-${product.id}`,
         categorySlug: product.categorySlug,
+        brand: product.brand || "",
         images: product.images || [],
         name: product.name || "",
         productCode: product.productCode || "",
@@ -345,12 +457,12 @@ export default function ProductsManagerModal({
         },
         customFields: Array.isArray(product.customFields)
           ? product.customFields.map((cf) => ({
-              ...cf,
-              visibleToCustomer:
-                typeof cf.visibleToCustomer === "boolean"
-                  ? cf.visibleToCustomer
-                  : true,
-            }))
+            ...cf,
+            visibleToCustomer:
+              typeof cf.visibleToCustomer === "boolean"
+                ? cf.visibleToCustomer
+                : true,
+          }))
           : [],
       },
     ]);
@@ -424,6 +536,7 @@ export default function ProductsManagerModal({
             categorySlug: targetCategorySlug,
             categoryLabel:
               matchedCat?.label || categoryLabel || targetCategorySlug,
+            brand: draft.brand,
             images: draft.images,
             name: draft.name,
             productCode: draft.productCode,
@@ -459,6 +572,7 @@ export default function ProductsManagerModal({
             categorySlug: targetCategorySlug,
             categoryLabel:
               matchedCat?.label || categoryLabel || targetCategorySlug,
+            brand: d.brand,
             images: d.images,
             name: d.name,
             productCode: d.productCode,
@@ -598,9 +712,8 @@ export default function ProductsManagerModal({
                 setSuccessMsg(null);
                 setActiveTab("form");
               }}
-              className={`auth-toggle-btn ${
-                activeTab === "form" ? "active" : "inactive"
-              }`}
+              className={`auth-toggle-btn ${activeTab === "form" ? "active" : "inactive"
+                }`}
             >
               <span className="text-glossy-gold">
                 {editingProduct
@@ -617,9 +730,8 @@ export default function ProductsManagerModal({
                 setSuccessMsg(null);
                 setActiveTab("list");
               }}
-              className={`auth-toggle-btn ${
-                activeTab === "list" ? "active" : "inactive"
-              }`}
+              className={`auth-toggle-btn ${activeTab === "list" ? "active" : "inactive"
+                }`}
             >
               <span className="text-glossy-gold">
                 {categorySlug
@@ -703,9 +815,8 @@ export default function ProductsManagerModal({
                       <span className="text-xs sm:text-sm font-bold uppercase tracking-widest text-glossy-gold">
                         {editingProduct
                           ? "Product Information"
-                          : `Product #${draftIndex + 1}${
-                              draft.name ? ` — ${draft.name}` : ""
-                            }`}
+                          : `Product #${draftIndex + 1}${draft.name ? ` — ${draft.name}` : ""
+                          }`}
                       </span>
 
                       {!editingProduct && (
@@ -739,41 +850,101 @@ export default function ProductsManagerModal({
                       )}
                     </div>
 
-                    {/* Category Selector (shown when in All Products mode or when editing) */}
-                    {(!categorySlug || editingProduct) && (
-                      <div>
-                        <label className="block text-xs font-medium uppercase tracking-wider text-glossy-gold mb-1.5">
-                          Category
-                        </label>
-                        <select
-                          required
-                          value={draft.categorySlug}
-                          onChange={(e) =>
-                            updateDraft(draft.draftId, (d) => ({
-                              ...d,
-                              categorySlug: e.target.value,
-                            }))
-                          }
-                          className="auth-input w-full px-3.5 py-2.5 bg-[#0B0B0C] border border-[#00D4FF]/45 focus:outline-none text-sm"
-                        >
-                          <option value="" disabled>
-                            Select a category
-                          </option>
-                          {categories.map((cat) => (
-                            <option key={cat.id} value={cat.slug}>
-                              {cat.label}
+                    {/* Category & Brand Selectors */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      {(!categorySlug || editingProduct) && (
+                        <div>
+                          <label className="block text-xs font-medium uppercase tracking-wider text-glossy-gold mb-1.5">
+                            Category
+                          </label>
+                          <select
+                            required
+                            value={draft.categorySlug}
+                            onChange={(e) =>
+                              updateDraft(draft.draftId, (d) => ({
+                                ...d,
+                                categorySlug: e.target.value,
+                              }))
+                            }
+                            className="auth-input w-full px-3.5 py-2.5 bg-[#0B0B0C] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          >
+                            <option value="" disabled>
+                              Select a category
                             </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={cat.slug}>
+                                {cat.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
-                    {/* Product Images Upload & Gallery */}
-                    <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-medium uppercase tracking-wider text-glossy-gold">
-                          Product Images ({draft.images.length})
+                      <div
+                        className={
+                          categorySlug && !editingProduct ? "sm:col-span-2" : ""
+                        }
+                      >
+                        <label className="block text-xs font-medium uppercase tracking-wider text-glossy-gold mb-1.5">
+                          Brand (For Home Page Brand Logo Train — Optional)
                         </label>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={
+                              BRAND_OPTIONS.includes(draft.brand)
+                                ? draft.brand
+                                : ""
+                            }
+                            onChange={(e) =>
+                              updateDraft(draft.draftId, (d) => ({
+                                ...d,
+                                brand: e.target.value,
+                              }))
+                            }
+                            className="auth-input w-1/2 px-3 py-2.5 bg-[#0B0B0C] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          >
+                            <option value="">Select Brand (or type custom)</option>
+                            {BRAND_OPTIONS.map((b) => (
+                              <option key={b} value={b}>
+                                {b}
+                              </option>
+                            ))}
+                          </select>
+
+                          <input
+                            type="text"
+                            value={draft.brand}
+                            onChange={(e) =>
+                              updateDraft(draft.draftId, (d) => ({
+                                ...d,
+                                brand: e.target.value,
+                              }))
+                            }
+                            placeholder="e.g. Liqui Moly, Motul, RCB..."
+                            className="auth-input flex-1 px-3 py-2.5 bg-[#0B0B0C] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Product Images Upload & Gallery (Click any uploaded image to enlarge in a popup window) */}
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                        <div>
+                          <label className="block text-xs font-medium uppercase tracking-wider text-glossy-gold">
+                            Product Images ({draft.images.length})
+                          </label>
+                          {draft.images.length > 0 && (
+                            <span
+                              style={{ color: "#9CA3AF" }}
+                              className="text-[11px]"
+                            >
+                              Click on any uploaded image below to enlarge it in
+                              a popup window while writing your product
+                              description
+                            </span>
+                          )}
+                        </div>
                         <label
                           style={{ border: "1px solid rgba(255, 30, 39, 0.6)" }}
                           className="px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-[#1A1215] hover:border-[#FF6B6B] text-glossy-gold cursor-pointer"
@@ -792,29 +963,126 @@ export default function ProductsManagerModal({
                       </div>
 
                       {draft.images.length > 0 ? (
-                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 p-3 bg-[#0B0B0C] border border-[#00D4FF]/35">
-                          {draft.images.map((imgSrc, idx) => (
-                            <div
-                              key={idx}
-                              className="relative group h-24 bg-[#141417] border border-[#00D4FF]/40 overflow-hidden flex items-center justify-center"
-                            >
-                              <img
-                                src={imgSrc}
-                                alt={`Product preview ${idx + 1}`}
-                                className="w-full h-full object-contain"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleRemoveDraftImage(draft.draftId, idx)
-                                }
-                                title="Remove image"
-                                className="absolute top-1 right-1 w-6 h-6 bg-black/85 border border-red-500 text-red-300 text-xs flex items-center justify-center cursor-pointer"
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-[#0B0B0C] border border-[#00D4FF]/35">
+                          {draft.images.map((imgSrc, idx) => {
+                            const isCleaning = Boolean(
+                              cleaningMap[`${draft.draftId}-${idx}`]
+                            );
+
+                            return (
+                              <div
+                                key={idx}
+                                className="relative group bg-[#141417] border border-[#00D4FF]/40 hover:border-[#FF1E27] overflow-hidden flex flex-col justify-between transition-all"
                               >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
+                                <div
+                                  onClick={() => {
+                                    setEnlargedDraftImage({
+                                      draftId: draft.draftId,
+                                      imageIndex: idx,
+                                    });
+                                    setEnlargedZoomed(false);
+                                  }}
+                                  title="Click to enlarge image in popup window"
+                                  className="h-28 w-full flex items-center justify-center p-1.5 cursor-pointer relative"
+                                >
+                                  <img
+                                    src={imgSrc}
+                                    alt={`Product preview ${idx + 1}`}
+                                    className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                                  />
+
+                                  {isCleaning && (
+                                    <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center text-center p-2 z-20">
+                                      <span className="text-xs text-glossy-gold font-bold animate-pulse">
+                                        ✨ Studio Cleaning...
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[10px] uppercase tracking-wider text-center py-0.5 text-glossy-gold">
+                                    🔍 Click to Enlarge
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveDraftImage(draft.draftId, idx);
+                                    }}
+                                    title="Remove image"
+                                    className="absolute top-1 right-1 w-6 h-6 bg-black/85 border border-red-500 text-red-300 text-xs flex items-center justify-center cursor-pointer z-10"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+
+                                {/* Free AI Studio Deep Clean Button with Background Color Options */}
+                                <div className="p-1.5 bg-[#0A0A0C] border-t border-[#00D4FF]/25 flex flex-col gap-1">
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      disabled={isCleaning}
+                                      onClick={(e) =>
+                                        handleAutoCleanStudioImage(
+                                          draft.draftId,
+                                          idx,
+                                          "white",
+                                          e
+                                        )
+                                      }
+                                      title="Clean image onto pure spotless white background"
+                                      style={{
+                                        border: "1px solid rgba(255, 255, 255, 0.45)",
+                                      }}
+                                      className="flex-1 py-1 px-1 bg-[#1A1A1E] hover:bg-[#25252A] text-[9.5px] font-bold uppercase tracking-wider text-white transition-colors cursor-pointer text-center"
+                                    >
+                                      ⚪ Clean White
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      disabled={isCleaning}
+                                      onClick={(e) =>
+                                        handleAutoCleanStudioImage(
+                                          draft.draftId,
+                                          idx,
+                                          "dark",
+                                          e
+                                        )
+                                      }
+                                      title="Clean image onto clean obsidian black background"
+                                      style={{
+                                        border: "1px solid rgba(255, 30, 39, 0.65)",
+                                      }}
+                                      className="flex-1 py-1 px-1 bg-[#141417] hover:bg-[#1D1D22] text-[9.5px] font-bold uppercase tracking-wider text-glossy-gold transition-colors cursor-pointer text-center"
+                                    >
+                                      ⚫ Clean Black
+                                    </button>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={isCleaning}
+                                    onClick={(e) =>
+                                      handleAutoCleanStudioImage(
+                                        draft.draftId,
+                                        idx,
+                                        "auto",
+                                        e
+                                      )
+                                    }
+                                    title="Auto-detect product transparency and apply clean background"
+                                    style={{
+                                      border: "1px solid rgba(0, 212, 255, 0.45)",
+                                    }}
+                                    className="w-full py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7DF9FF] hover:bg-[#00D4FF]/10 transition-colors cursor-pointer text-center"
+                                  >
+                                    {isCleaning ? "Cleaning..." : "✨ Auto Clean"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         <label className="w-full py-5 bg-[#0B0B0C] border border-dashed border-[#00D4FF]/40 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-[#141113] transition-colors">
@@ -834,7 +1102,7 @@ export default function ProductsManagerModal({
                       )}
                     </div>
 
-                    {/* Customizable Product Fields (Editable Field Name + Value + Show to Customer Toggle + Remove/Hide) */}
+                    {/* Customizable & Deletable Default Product Fields */}
                     <div className="space-y-3 pt-1">
                       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#00D4FF]/30 pb-1.5">
                         <span className="text-xs font-bold uppercase tracking-wider text-glossy-gold">
@@ -844,570 +1112,765 @@ export default function ProductsManagerModal({
                           style={{ color: "#9CA3AF" }}
                           className="text-[11px] uppercase tracking-wider"
                         >
-                          Check &quot;Visible to Customer&quot; to decide what
-                          customers see
+                          Toggle &quot;Visible to Customer&quot; or click
+                          &quot;✕ Delete Field&quot; to remove any field
                         </span>
                       </div>
 
-                      {/* 1. Product Name Field */}
-                      <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                            <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
-                              Field Name:
-                            </span>
-                            <input
-                              type="text"
-                              value={draft.fieldSettings.nameLabel}
-                              onChange={(e) =>
-                                handleUpdateDraftFieldSetting(
-                                  draft.draftId,
-                                  "nameLabel",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Product Name"
-                              className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                      {/* 1. Product Name Field (Deletable) */}
+                      {!draft.fieldSettings.nameDeleted && (
+                        <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                              <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
+                                Field Name:
+                              </span>
                               <input
-                                type="checkbox"
-                                checked={draft.fieldSettings.nameVisible}
+                                type="text"
+                                value={draft.fieldSettings.nameLabel}
                                 onChange={(e) =>
                                   handleUpdateDraftFieldSetting(
                                     draft.draftId,
-                                    "nameVisible",
-                                    e.target.checked
+                                    "nameLabel",
+                                    e.target.value
                                   )
                                 }
-                                className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                placeholder="Product Name"
+                                className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
                               />
-                              <span>Visible to Customer</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateDraft(draft.draftId, (d) => ({
-                                  ...d,
-                                  name: "",
-                                  fieldSettings: {
-                                    ...d.fieldSettings,
-                                    nameVisible: false,
-                                  },
-                                }))
-                              }
-                              style={{
-                                border: "1px solid rgba(255, 80, 80, 0.5)",
-                              }}
-                              className="px-2 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 cursor-pointer"
-                            >
-                              Remove / Hide
-                            </button>
-                          </div>
-                        </div>
-                        <input
-                          type="text"
-                          value={draft.name}
-                          onChange={(e) =>
-                            updateDraft(draft.draftId, (d) => ({
-                              ...d,
-                              name: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter product name (or leave empty)"
-                          className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
-                        />
-                      </div>
-
-                      {/* 2. Price Field */}
-                      <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                            <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
-                              Field Name:
-                            </span>
-                            <input
-                              type="text"
-                              value={draft.fieldSettings.priceLabel}
-                              onChange={(e) =>
-                                handleUpdateDraftFieldSetting(
-                                  draft.draftId,
-                                  "priceLabel",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Price"
-                              className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={draft.fieldSettings.priceVisible}
-                                onChange={(e) =>
-                                  handleUpdateDraftFieldSetting(
-                                    draft.draftId,
-                                    "priceVisible",
-                                    e.target.checked
-                                  )
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.fieldSettings.nameVisible}
+                                  onChange={(e) =>
+                                    handleUpdateDraftFieldSetting(
+                                      draft.draftId,
+                                      "nameVisible",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                />
+                                <span>Visible to Customer</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    name: "",
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      nameVisible: false,
+                                      nameDeleted: true,
+                                    },
+                                  }))
                                 }
-                                className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
-                              />
-                              <span>Visible to Customer</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateDraft(draft.draftId, (d) => ({
-                                  ...d,
-                                  price: "",
-                                  fieldSettings: {
-                                    ...d.fieldSettings,
-                                    priceVisible: false,
-                                  },
-                                }))
-                              }
-                              style={{
-                                border: "1px solid rgba(255, 80, 80, 0.5)",
-                              }}
-                              className="px-2 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 cursor-pointer"
-                            >
-                              Remove / Hide
-                            </button>
+                                style={{
+                                  border: "1px solid rgba(255, 80, 80, 0.55)",
+                                }}
+                                className="px-2.5 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 hover:border-red-400 cursor-pointer"
+                              >
+                                ✕ Delete Field
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <input
-                          type="text"
-                          value={draft.price}
-                          onChange={(e) =>
-                            updateDraft(draft.draftId, (d) => ({
-                              ...d,
-                              price: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter price (or leave empty)"
-                          className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
-                        />
-                      </div>
-
-                      {/* 2B. Stock Quantity Field (Add / Deduct Quantity Available in Stock) */}
-                      <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                            <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
-                              Field Name:
-                            </span>
-                            <input
-                              type="text"
-                              value={
-                                draft.fieldSettings.stockQuantityLabel ||
-                                "Available Stock"
-                              }
-                              onChange={(e) =>
-                                handleUpdateDraftFieldSetting(
-                                  draft.draftId,
-                                  "stockQuantityLabel",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Available Stock"
-                              className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  draft.fieldSettings.stockQuantityVisible !==
-                                  false
-                                }
-                                onChange={(e) =>
-                                  handleUpdateDraftFieldSetting(
-                                    draft.draftId,
-                                    "stockQuantityVisible",
-                                    e.target.checked
-                                  )
-                                }
-                                className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
-                              />
-                              <span>Visible to Customer</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateDraft(draft.draftId, (d) => ({
-                                  ...d,
-                                  stockQuantity: 0,
-                                  fieldSettings: {
-                                    ...d.fieldSettings,
-                                    stockQuantityVisible: false,
-                                  },
-                                }))
-                              }
-                              style={{
-                                border: "1px solid rgba(255, 80, 80, 0.5)",
-                              }}
-                              className="px-2 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 cursor-pointer"
-                            >
-                              Remove / Hide
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateDraft(draft.draftId, (d) => ({
-                                ...d,
-                                stockQuantity: Math.max(
-                                  0,
-                                  (Number(d.stockQuantity) || 0) - 1
-                                ),
-                              }))
-                            }
-                            style={{
-                              border: "1.5px solid rgba(255, 80, 80, 0.65)",
-                            }}
-                            className="px-3.5 py-2 bg-[#1A0D10] hover:border-red-400 text-red-300 text-xs font-bold uppercase tracking-wider cursor-pointer"
-                          >
-                            − Deduct 1
-                          </button>
-
                           <input
-                            type="number"
-                            min="0"
-                            value={draft.stockQuantity}
+                            type="text"
+                            value={draft.name}
                             onChange={(e) =>
                               updateDraft(draft.draftId, (d) => ({
                                 ...d,
-                                stockQuantity: Math.max(
-                                  0,
-                                  parseInt(e.target.value || "0", 10) || 0
-                                ),
+                                name: e.target.value,
                               }))
                             }
-                            placeholder="0"
-                            className="auth-input w-28 text-center px-3 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm font-bold"
+                            placeholder="Enter product name (or leave empty)"
+                            className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
                           />
+                        </div>
+                      )}
 
-                          <button
-                            type="button"
-                            onClick={() =>
+                      {/* 2. Price Field (Deletable) */}
+                      {!draft.fieldSettings.priceDeleted && (
+                        <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                              <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
+                                Field Name:
+                              </span>
+                              <input
+                                type="text"
+                                value={draft.fieldSettings.priceLabel}
+                                onChange={(e) =>
+                                  handleUpdateDraftFieldSetting(
+                                    draft.draftId,
+                                    "priceLabel",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Price"
+                                className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.fieldSettings.priceVisible}
+                                  onChange={(e) =>
+                                    handleUpdateDraftFieldSetting(
+                                      draft.draftId,
+                                      "priceVisible",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                />
+                                <span>Visible to Customer</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    price: "",
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      priceVisible: false,
+                                      priceDeleted: true,
+                                    },
+                                  }))
+                                }
+                                style={{
+                                  border: "1px solid rgba(255, 80, 80, 0.55)",
+                                }}
+                                className="px-2.5 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 hover:border-red-400 cursor-pointer"
+                              >
+                                ✕ Delete Field
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            type="text"
+                            value={draft.price}
+                            onChange={(e) =>
                               updateDraft(draft.draftId, (d) => ({
                                 ...d,
-                                stockQuantity:
-                                  Math.max(0, Number(d.stockQuantity) || 0) + 1,
+                                price: e.target.value,
                               }))
                             }
-                            style={{
-                              border: "1.5px solid rgba(0, 212, 255, 0.65)",
-                            }}
-                            className="px-3.5 py-2 bg-[#141417] hover:border-[#7DF9FF] text-glossy-gold text-xs font-bold uppercase tracking-wider cursor-pointer"
-                          >
-                            + Add 1
-                          </button>
-
-                          <span
-                            style={{ color: "#9CA3AF" }}
-                            className="text-xs ml-1"
-                          >
-                            Units available in stock
-                          </span>
+                            placeholder="Enter price (or leave empty)"
+                            className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          />
                         </div>
-                      </div>
+                      )}
 
-                      {/* 3. Product Code Field */}
-                      <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                            <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
-                              Field Name:
-                            </span>
-                            <input
-                              type="text"
-                              value={draft.fieldSettings.productCodeLabel}
-                              onChange={(e) =>
-                                handleUpdateDraftFieldSetting(
-                                  draft.draftId,
-                                  "productCodeLabel",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Product Code"
-                              className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                      {/* 2B. Stock Quantity Field (Deletable) */}
+                      {!draft.fieldSettings.stockQuantityDeleted && (
+                        <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                              <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
+                                Field Name:
+                              </span>
                               <input
-                                type="checkbox"
-                                checked={draft.fieldSettings.productCodeVisible}
+                                type="text"
+                                value={
+                                  draft.fieldSettings.stockQuantityLabel ||
+                                  "Available Stock"
+                                }
                                 onChange={(e) =>
                                   handleUpdateDraftFieldSetting(
                                     draft.draftId,
-                                    "productCodeVisible",
-                                    e.target.checked
+                                    "stockQuantityLabel",
+                                    e.target.value
                                   )
                                 }
-                                className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                placeholder="Available Stock"
+                                className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
                               />
-                              <span>Visible to Customer</span>
-                            </label>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    draft.fieldSettings.stockQuantityVisible !==
+                                    false
+                                  }
+                                  onChange={(e) =>
+                                    handleUpdateDraftFieldSetting(
+                                      draft.draftId,
+                                      "stockQuantityVisible",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                />
+                                <span>Visible to Customer</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    stockQuantity: 0,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      stockQuantityVisible: false,
+                                      stockQuantityDeleted: true,
+                                    },
+                                  }))
+                                }
+                                style={{
+                                  border: "1px solid rgba(255, 80, 80, 0.55)",
+                                }}
+                                className="px-2.5 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 hover:border-red-400 cursor-pointer"
+                              >
+                                ✕ Delete Field
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2.5">
                             <button
                               type="button"
                               onClick={() =>
                                 updateDraft(draft.draftId, (d) => ({
                                   ...d,
-                                  productCode: "",
-                                  fieldSettings: {
-                                    ...d.fieldSettings,
-                                    productCodeVisible: false,
-                                  },
+                                  stockQuantity: Math.max(
+                                    0,
+                                    (Number(d.stockQuantity) || 0) - 1
+                                  ),
                                 }))
                               }
                               style={{
-                                border: "1px solid rgba(255, 80, 80, 0.5)",
+                                border: "1.5px solid rgba(255, 80, 80, 0.65)",
                               }}
-                              className="px-2 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 cursor-pointer"
+                              className="px-3.5 py-2 bg-[#1A0D10] hover:border-red-400 text-red-300 text-xs font-bold uppercase tracking-wider cursor-pointer"
                             >
-                              Remove / Hide
+                              − Deduct 1
                             </button>
-                          </div>
-                        </div>
-                        <input
-                          type="text"
-                          value={draft.productCode}
-                          onChange={(e) =>
-                            updateDraft(draft.draftId, (d) => ({
-                              ...d,
-                              productCode: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter product code (or leave empty)"
-                          className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
-                        />
-                      </div>
 
-                      {/* 4. UID Number Field */}
-                      <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                            <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
-                              Field Name:
-                            </span>
                             <input
-                              type="text"
-                              value={draft.fieldSettings.uidNumberLabel}
+                              type="number"
+                              min="0"
+                              value={draft.stockQuantity}
                               onChange={(e) =>
-                                handleUpdateDraftFieldSetting(
-                                  draft.draftId,
-                                  "uidNumberLabel",
-                                  e.target.value
-                                )
+                                updateDraft(draft.draftId, (d) => ({
+                                  ...d,
+                                  stockQuantity: Math.max(
+                                    0,
+                                    parseInt(e.target.value || "0", 10) || 0
+                                  ),
+                                }))
                               }
-                              placeholder="UID Number"
-                              className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
+                              placeholder="0"
+                              className="auth-input w-28 text-center px-3 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm font-bold"
                             />
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={draft.fieldSettings.uidNumberVisible}
-                                onChange={(e) =>
-                                  handleUpdateDraftFieldSetting(
-                                    draft.draftId,
-                                    "uidNumberVisible",
-                                    e.target.checked
-                                  )
-                                }
-                                className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
-                              />
-                              <span>Visible to Customer</span>
-                            </label>
+
                             <button
                               type="button"
                               onClick={() =>
                                 updateDraft(draft.draftId, (d) => ({
                                   ...d,
-                                  uidNumber: "",
-                                  fieldSettings: {
-                                    ...d.fieldSettings,
-                                    uidNumberVisible: false,
-                                  },
+                                  stockQuantity:
+                                    Math.max(0, Number(d.stockQuantity) || 0) +
+                                    1,
                                 }))
                               }
                               style={{
-                                border: "1px solid rgba(255, 80, 80, 0.5)",
+                                border: "1.5px solid rgba(0, 212, 255, 0.65)",
                               }}
-                              className="px-2 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 cursor-pointer"
+                              className="px-3.5 py-2 bg-[#141417] hover:border-[#7DF9FF] text-glossy-gold text-xs font-bold uppercase tracking-wider cursor-pointer"
                             >
-                              Remove / Hide
+                              + Add 1
                             </button>
+
+                            <span
+                              style={{ color: "#9CA3AF" }}
+                              className="text-xs ml-1"
+                            >
+                              Units available in stock
+                            </span>
                           </div>
                         </div>
-                        <input
-                          type="text"
-                          value={draft.uidNumber}
-                          onChange={(e) =>
-                            updateDraft(draft.draftId, (d) => ({
-                              ...d,
-                              uidNumber: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter UID number (or leave empty)"
-                          className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
-                        />
-                      </div>
+                      )}
 
-                      {/* 5. Model Number Field */}
-                      <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                            <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
-                              Field Name:
-                            </span>
-                            <input
-                              type="text"
-                              value={draft.fieldSettings.modelNumberLabel}
-                              onChange={(e) =>
-                                handleUpdateDraftFieldSetting(
-                                  draft.draftId,
-                                  "modelNumberLabel",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Model Number"
-                              className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                      {/* 3. Product Code Field (Deletable) */}
+                      {!draft.fieldSettings.productCodeDeleted && (
+                        <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                              <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
+                                Field Name:
+                              </span>
                               <input
-                                type="checkbox"
-                                checked={draft.fieldSettings.modelNumberVisible}
+                                type="text"
+                                value={draft.fieldSettings.productCodeLabel}
                                 onChange={(e) =>
                                   handleUpdateDraftFieldSetting(
                                     draft.draftId,
-                                    "modelNumberVisible",
-                                    e.target.checked
+                                    "productCodeLabel",
+                                    e.target.value
                                   )
                                 }
-                                className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                placeholder="Product Code"
+                                className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
                               />
-                              <span>Visible to Customer</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateDraft(draft.draftId, (d) => ({
-                                  ...d,
-                                  modelNumber: "",
-                                  fieldSettings: {
-                                    ...d.fieldSettings,
-                                    modelNumberVisible: false,
-                                  },
-                                }))
-                              }
-                              style={{
-                                border: "1px solid rgba(255, 80, 80, 0.5)",
-                              }}
-                              className="px-2 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 cursor-pointer"
-                            >
-                              Remove / Hide
-                            </button>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    draft.fieldSettings.productCodeVisible
+                                  }
+                                  onChange={(e) =>
+                                    handleUpdateDraftFieldSetting(
+                                      draft.draftId,
+                                      "productCodeVisible",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                />
+                                <span>Visible to Customer</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    productCode: "",
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      productCodeVisible: false,
+                                      productCodeDeleted: true,
+                                    },
+                                  }))
+                                }
+                                style={{
+                                  border: "1px solid rgba(255, 80, 80, 0.55)",
+                                }}
+                                className="px-2.5 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 hover:border-red-400 cursor-pointer"
+                              >
+                                ✕ Delete Field
+                              </button>
+                            </div>
                           </div>
+                          <input
+                            type="text"
+                            value={draft.productCode}
+                            onChange={(e) =>
+                              updateDraft(draft.draftId, (d) => ({
+                                ...d,
+                                productCode: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter product code (or leave empty)"
+                            className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          />
                         </div>
-                        <input
-                          type="text"
-                          value={draft.modelNumber}
-                          onChange={(e) =>
-                            updateDraft(draft.draftId, (d) => ({
-                              ...d,
-                              modelNumber: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter model number (or leave empty)"
-                          className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
-                        />
-                      </div>
+                      )}
 
-                      {/* 6. Description Field */}
-                      <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                            <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
-                              Field Name:
-                            </span>
-                            <input
-                              type="text"
-                              value={draft.fieldSettings.descriptionLabel}
-                              onChange={(e) =>
-                                handleUpdateDraftFieldSetting(
-                                  draft.draftId,
-                                  "descriptionLabel",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Description"
-                              className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
-                            />
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                      {/* 4. UID Number Field (Deletable) */}
+                      {!draft.fieldSettings.uidNumberDeleted && (
+                        <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                              <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
+                                Field Name:
+                              </span>
                               <input
-                                type="checkbox"
-                                checked={draft.fieldSettings.descriptionVisible}
+                                type="text"
+                                value={draft.fieldSettings.uidNumberLabel}
                                 onChange={(e) =>
                                   handleUpdateDraftFieldSetting(
                                     draft.draftId,
-                                    "descriptionVisible",
-                                    e.target.checked
+                                    "uidNumberLabel",
+                                    e.target.value
                                   )
                                 }
-                                className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                placeholder="UID Number"
+                                className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
                               />
-                              <span>Visible to Customer</span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateDraft(draft.draftId, (d) => ({
-                                  ...d,
-                                  description: "",
-                                  fieldSettings: {
-                                    ...d.fieldSettings,
-                                    descriptionVisible: false,
-                                  },
-                                }))
-                              }
-                              style={{
-                                border: "1px solid rgba(255, 80, 80, 0.5)",
-                              }}
-                              className="px-2 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 cursor-pointer"
-                            >
-                              Remove / Hide
-                            </button>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={draft.fieldSettings.uidNumberVisible}
+                                  onChange={(e) =>
+                                    handleUpdateDraftFieldSetting(
+                                      draft.draftId,
+                                      "uidNumberVisible",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                />
+                                <span>Visible to Customer</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    uidNumber: "",
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      uidNumberVisible: false,
+                                      uidNumberDeleted: true,
+                                    },
+                                  }))
+                                }
+                                style={{
+                                  border: "1px solid rgba(255, 80, 80, 0.55)",
+                                }}
+                                className="px-2.5 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 hover:border-red-400 cursor-pointer"
+                              >
+                                ✕ Delete Field
+                              </button>
+                            </div>
                           </div>
+                          <input
+                            type="text"
+                            value={draft.uidNumber}
+                            onChange={(e) =>
+                              updateDraft(draft.draftId, (d) => ({
+                                ...d,
+                                uidNumber: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter UID number (or leave empty)"
+                            className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          />
                         </div>
-                        <textarea
-                          rows={2}
-                          value={draft.description}
-                          onChange={(e) =>
-                            updateDraft(draft.draftId, (d) => ({
-                              ...d,
-                              description: e.target.value,
-                            }))
-                          }
-                          placeholder="Enter product description"
-                          className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
-                        />
-                      </div>
+                      )}
+
+                      {/* 5. Model Number Field (Deletable) */}
+                      {!draft.fieldSettings.modelNumberDeleted && (
+                        <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                              <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
+                                Field Name:
+                              </span>
+                              <input
+                                type="text"
+                                value={draft.fieldSettings.modelNumberLabel}
+                                onChange={(e) =>
+                                  handleUpdateDraftFieldSetting(
+                                    draft.draftId,
+                                    "modelNumberLabel",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Model Number"
+                                className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
+                              />
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    draft.fieldSettings.modelNumberVisible
+                                  }
+                                  onChange={(e) =>
+                                    handleUpdateDraftFieldSetting(
+                                      draft.draftId,
+                                      "modelNumberVisible",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                />
+                                <span>Visible to Customer</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    modelNumber: "",
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      modelNumberVisible: false,
+                                      modelNumberDeleted: true,
+                                    },
+                                  }))
+                                }
+                                style={{
+                                  border: "1px solid rgba(255, 80, 80, 0.55)",
+                                }}
+                                className="px-2.5 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 hover:border-red-400 cursor-pointer"
+                              >
+                                ✕ Delete Field
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            type="text"
+                            value={draft.modelNumber}
+                            onChange={(e) =>
+                              updateDraft(draft.draftId, (d) => ({
+                                ...d,
+                                modelNumber: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter model number (or leave empty)"
+                            className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          />
+                        </div>
+                      )}
+
+                      {/* 6. Description Field (Deletable, with Quick Image Enlarge button if images exist) */}
+                      {!draft.fieldSettings.descriptionDeleted && (
+                        <div className="p-3 bg-[#0B0B0C] border border-[#00D4FF]/40 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                              <span className="text-[10px] uppercase tracking-wider text-glossy-gold shrink-0">
+                                Field Name:
+                              </span>
+                              <input
+                                type="text"
+                                value={draft.fieldSettings.descriptionLabel}
+                                onChange={(e) =>
+                                  handleUpdateDraftFieldSetting(
+                                    draft.draftId,
+                                    "descriptionLabel",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="Description"
+                                className="auth-input px-2.5 py-1 bg-[#141417] border border-[#00D4FF]/45 text-xs font-semibold focus:outline-none"
+                              />
+                              {draft.images.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEnlargedDraftImage({
+                                      draftId: draft.draftId,
+                                      imageIndex: 0,
+                                    });
+                                    setEnlargedZoomed(false);
+                                  }}
+                                  className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-[#1A1215] border border-[#00D4FF]/55 hover:border-[#7DF9FF] text-glossy-gold cursor-pointer"
+                                >
+                                  🔍 Enlarge Uploaded Image
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 text-xs text-glossy-gold cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    draft.fieldSettings.descriptionVisible
+                                  }
+                                  onChange={(e) =>
+                                    handleUpdateDraftFieldSetting(
+                                      draft.draftId,
+                                      "descriptionVisible",
+                                      e.target.checked
+                                    )
+                                  }
+                                  className="accent-[#FF1E27] w-4 h-4 cursor-pointer"
+                                />
+                                <span>Visible to Customer</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    description: "",
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      descriptionVisible: false,
+                                      descriptionDeleted: true,
+                                    },
+                                  }))
+                                }
+                                style={{
+                                  border: "1px solid rgba(255, 80, 80, 0.55)",
+                                }}
+                                className="px-2.5 py-0.5 text-[10px] uppercase bg-[#1A0D10] text-red-300 hover:border-red-400 cursor-pointer"
+                              >
+                                ✕ Delete Field
+                              </button>
+                            </div>
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={draft.description}
+                            onChange={(e) =>
+                              updateDraft(draft.draftId, (d) => ({
+                                ...d,
+                                description: e.target.value,
+                              }))
+                            }
+                            placeholder="Enter product description"
+                            className="auth-input w-full px-3.5 py-2 bg-[#111114] border border-[#00D4FF]/45 focus:outline-none text-sm"
+                          />
+                        </div>
+                      )}
+
+                      {/* Restore Any Deleted Default Fields Bar */}
+                      {(draft.fieldSettings.nameDeleted ||
+                        draft.fieldSettings.priceDeleted ||
+                        draft.fieldSettings.stockQuantityDeleted ||
+                        draft.fieldSettings.productCodeDeleted ||
+                        draft.fieldSettings.uidNumberDeleted ||
+                        draft.fieldSettings.modelNumberDeleted ||
+                        draft.fieldSettings.descriptionDeleted) && (
+                          <div className="p-3 bg-[#141113] border border-dashed border-[#00D4FF]/45 flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-wider text-glossy-gold mr-1">
+                              Restore Deleted Default Field:
+                            </span>
+                            {draft.fieldSettings.nameDeleted && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      nameDeleted: false,
+                                      nameVisible: true,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 text-[10px] uppercase bg-[#0B0B0C] border border-[#00D4FF]/50 text-glossy-gold cursor-pointer"
+                              >
+                                + {draft.fieldSettings.nameLabel || "Product Name"}
+                              </button>
+                            )}
+                            {draft.fieldSettings.priceDeleted && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      priceDeleted: false,
+                                      priceVisible: true,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 text-[10px] uppercase bg-[#0B0B0C] border border-[#00D4FF]/50 text-glossy-gold cursor-pointer"
+                              >
+                                + {draft.fieldSettings.priceLabel || "Price"}
+                              </button>
+                            )}
+                            {draft.fieldSettings.stockQuantityDeleted && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    stockQuantity: 1,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      stockQuantityDeleted: false,
+                                      stockQuantityVisible: true,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 text-[10px] uppercase bg-[#0B0B0C] border border-[#00D4FF]/50 text-glossy-gold cursor-pointer"
+                              >
+                                +{" "}
+                                {draft.fieldSettings.stockQuantityLabel ||
+                                  "Available Stock"}
+                              </button>
+                            )}
+                            {draft.fieldSettings.productCodeDeleted && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      productCodeDeleted: false,
+                                      productCodeVisible: true,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 text-[10px] uppercase bg-[#0B0B0C] border border-[#00D4FF]/50 text-glossy-gold cursor-pointer"
+                              >
+                                +{" "}
+                                {draft.fieldSettings.productCodeLabel ||
+                                  "Product Code"}
+                              </button>
+                            )}
+                            {draft.fieldSettings.uidNumberDeleted && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      uidNumberDeleted: false,
+                                      uidNumberVisible: true,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 text-[10px] uppercase bg-[#0B0B0C] border border-[#00D4FF]/50 text-glossy-gold cursor-pointer"
+                              >
+                                +{" "}
+                                {draft.fieldSettings.uidNumberLabel ||
+                                  "UID Number"}
+                              </button>
+                            )}
+                            {draft.fieldSettings.modelNumberDeleted && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      modelNumberDeleted: false,
+                                      modelNumberVisible: true,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 text-[10px] uppercase bg-[#0B0B0C] border border-[#00D4FF]/50 text-glossy-gold cursor-pointer"
+                              >
+                                +{" "}
+                                {draft.fieldSettings.modelNumberLabel ||
+                                  "Model Number"}
+                              </button>
+                            )}
+                            {draft.fieldSettings.descriptionDeleted && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateDraft(draft.draftId, (d) => ({
+                                    ...d,
+                                    fieldSettings: {
+                                      ...d.fieldSettings,
+                                      descriptionDeleted: false,
+                                      descriptionVisible: true,
+                                    },
+                                  }))
+                                }
+                                className="px-2.5 py-1 text-[10px] uppercase bg-[#0B0B0C] border border-[#00D4FF]/50 text-glossy-gold cursor-pointer"
+                              >
+                                +{" "}
+                                {draft.fieldSettings.descriptionLabel ||
+                                  "Description"}
+                              </button>
+                            )}
+                          </div>
+                        )}
                     </div>
 
                     {/* Dynamic Custom Fields Section for this Product */}
@@ -1538,10 +2001,10 @@ export default function ProductsManagerModal({
                   {saving
                     ? "Publishing Products..."
                     : editingProduct
-                    ? "Update & Save Product"
-                    : drafts.length > 1
-                    ? `Publish All ${drafts.length} Products at Once`
-                    : "Publish Product"}
+                      ? "Update & Save Product"
+                      : drafts.length > 1
+                        ? `Publish All ${drafts.length} Products at Once`
+                        : "Publish Product"}
                 </button>
               </div>
             </form>
@@ -1630,7 +2093,7 @@ export default function ProductsManagerModal({
                           </div>
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              {prod.name && (
+                              {!prod.fieldSettings?.nameDeleted && prod.name && (
                                 <h4 className="text-sm font-bold uppercase tracking-wider text-glossy-gold">
                                   {prod.name}
                                 </h4>
@@ -1638,19 +2101,25 @@ export default function ProductsManagerModal({
                               <span className="px-2 py-0.5 text-[10px] uppercase border border-[#00D4FF]/45 text-glossy-gold">
                                 {prod.categoryLabel}
                               </span>
-                              <span
-                                className={`px-2 py-0.5 text-[10px] font-bold uppercase border ${
-                                  currentStock > 0
-                                    ? "border-[#00D4FF]/65 text-glossy-gold bg-[#141417]"
-                                    : "border-red-500/70 text-red-300 bg-[#1A0D10]"
-                                }`}
-                              >
-                                {prod.fieldSettings?.stockQuantityLabel ||
-                                  "Available Stock"}
-                                : {currentStock}
-                              </span>
+                              {prod.brand && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold uppercase border border-[#FF1E27]/65 text-glossy-gold bg-[#1A1215]">
+                                  Brand: {prod.brand}
+                                </span>
+                              )}
+                              {!prod.fieldSettings?.stockQuantityDeleted && (
+                                <span
+                                  className={`px-2 py-0.5 text-[10px] font-bold uppercase border ${currentStock > 0
+                                      ? "border-[#00D4FF]/65 text-glossy-gold bg-[#141417]"
+                                      : "border-red-500/70 text-red-300 bg-[#1A0D10]"
+                                    }`}
+                                >
+                                  {prod.fieldSettings?.stockQuantityLabel ||
+                                    "Available Stock"}
+                                  : {currentStock}
+                                </span>
+                              )}
                             </div>
-                            {prod.price && (
+                            {!prod.fieldSettings?.priceDeleted && prod.price && (
                               <p className="text-xs font-semibold text-glossy-gold mt-1">
                                 {prod.fieldSettings?.priceLabel || "Price"}:{" "}
                                 {prod.price}
@@ -1660,17 +2129,17 @@ export default function ProductsManagerModal({
                               style={{ color: "#D1D5DB" }}
                               className="text-[11px] mt-0.5"
                             >
-                              {prod.productCode &&
-                                `${
-                                  prod.fieldSettings?.productCodeLabel || "Code"
+                              {!prod.fieldSettings?.productCodeDeleted &&
+                                prod.productCode &&
+                                `${prod.fieldSettings?.productCodeLabel || "Code"
                                 }: ${prod.productCode} `}
-                              {prod.uidNumber &&
-                                `• ${
-                                  prod.fieldSettings?.uidNumberLabel || "UID"
+                              {!prod.fieldSettings?.uidNumberDeleted &&
+                                prod.uidNumber &&
+                                `• ${prod.fieldSettings?.uidNumberLabel || "UID"
                                 }: ${prod.uidNumber} `}
-                              {prod.modelNumber &&
-                                `• ${
-                                  prod.fieldSettings?.modelNumberLabel || "Model"
+                              {!prod.fieldSettings?.modelNumberDeleted &&
+                                prod.modelNumber &&
+                                `• ${prod.fieldSettings?.modelNumberLabel || "Model"
                                 }: ${prod.modelNumber}`}
                             </p>
                           </div>
@@ -1852,11 +2321,10 @@ export default function ProductsManagerModal({
                         key={idx}
                         type="button"
                         onClick={() => setActiveViewImageIdx(idx)}
-                        className={`w-20 h-20 bg-[#0B0B0C] border-2 p-1.5 shrink-0 cursor-pointer transition-all ${
-                          activeViewImageIdx === idx
+                        className={`w-20 h-20 bg-[#0B0B0C] border-2 p-1.5 shrink-0 cursor-pointer transition-all ${activeViewImageIdx === idx
                             ? "border-[#FF1E27] scale-105"
                             : "border-[#00D4FF]/30 opacity-65 hover:opacity-100"
-                        }`}
+                          }`}
                       >
                         <img
                           src={imgUrl}
@@ -1877,189 +2345,205 @@ export default function ProductsManagerModal({
                 }}
                 className="lg:col-span-5 p-6 sm:p-8 space-y-4"
               >
-                {viewingProduct.name && (
+                {viewingProduct.brand && (
                   <div className="border-b border-[#00D4FF]/35 pb-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs uppercase tracking-wider text-glossy-gold opacity-80">
-                        {viewingProduct.fieldSettings?.nameLabel ||
-                          "Product Name"}
-                      </span>
-                      <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/40 text-glossy-gold">
-                        {viewingProduct.fieldSettings?.nameVisible !== false
-                          ? "Shown to Customers"
-                          : "Hidden from Customers"}
-                      </span>
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-glossy-gold mt-1">
-                      {viewingProduct.name}
-                    </h3>
-                  </div>
-                )}
-
-                {viewingProduct.price && (
-                  <div className="border-b border-[#00D4FF]/35 pb-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs uppercase tracking-wider text-glossy-gold opacity-80">
-                        {viewingProduct.fieldSettings?.priceLabel || "Price"}
-                      </span>
-                      <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/40 text-glossy-gold">
-                        {viewingProduct.fieldSettings?.priceVisible !== false
-                          ? "Shown to Customers"
-                          : "Hidden from Customers"}
-                      </span>
-                    </div>
-                    <p className="text-2xl font-extrabold text-glossy-gold mt-1">
-                      {viewingProduct.price}
+                    <span className="text-xs uppercase tracking-wider text-glossy-gold opacity-80">
+                      Brand
+                    </span>
+                    <p className="text-base font-bold uppercase tracking-wider text-glossy-gold mt-1">
+                      {viewingProduct.brand}
                     </p>
                   </div>
                 )}
 
-                {/* Available Stock Quantity Add / Deduct Panel in Full Screen */}
-                {(() => {
-                  const viewStock =
-                    typeof viewingProduct.stockQuantity === "number"
-                      ? Math.max(0, viewingProduct.stockQuantity)
-                      : 0;
-                  const viewStep = Math.max(
-                    1,
-                    parseInt(stockStepMap[viewingProduct.id] || "1", 10) || 1
-                  );
-                  return (
-                    <div className="border-b border-[#00D4FF]/35 pb-3 space-y-2">
+                {!viewingProduct.fieldSettings?.nameDeleted &&
+                  viewingProduct.name && (
+                    <div className="border-b border-[#00D4FF]/35 pb-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs uppercase tracking-wider text-glossy-gold opacity-80">
-                          {viewingProduct.fieldSettings?.stockQuantityLabel ||
-                            "Available Stock"}
+                          {viewingProduct.fieldSettings?.nameLabel ||
+                            "Product Name"}
                         </span>
                         <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/40 text-glossy-gold">
-                          {viewingProduct.fieldSettings
-                            ?.stockQuantityVisible !== false
+                          {viewingProduct.fieldSettings?.nameVisible !== false
                             ? "Shown to Customers"
                             : "Hidden from Customers"}
                         </span>
                       </div>
+                      <h3 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-glossy-gold mt-1">
+                        {viewingProduct.name}
+                      </h3>
+                    </div>
+                  )}
 
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                        <span
-                          className={`text-xl font-extrabold ${
-                            viewStock > 0 ? "text-glossy-gold" : "text-red-300"
-                          }`}
-                        >
-                          {viewStock}{" "}
-                          <span className="text-xs font-normal uppercase">
-                            {viewStock === 1 ? "Unit" : "Units"} in Stock
-                          </span>
+                {!viewingProduct.fieldSettings?.priceDeleted &&
+                  viewingProduct.price && (
+                    <div className="border-b border-[#00D4FF]/35 pb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs uppercase tracking-wider text-glossy-gold opacity-80">
+                          {viewingProduct.fieldSettings?.priceLabel || "Price"}
                         </span>
+                        <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/40 text-glossy-gold">
+                          {viewingProduct.fieldSettings?.priceVisible !== false
+                            ? "Shown to Customers"
+                            : "Hidden from Customers"}
+                        </span>
+                      </div>
+                      <p className="text-2xl font-extrabold text-glossy-gold mt-1">
+                        {viewingProduct.price}
+                      </p>
+                    </div>
+                  )}
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAdjustProductStock(
-                                viewingProduct.id,
-                                -viewStep
-                              )
-                            }
-                            style={{
-                              border: "1px solid rgba(255, 80, 80, 0.65)",
-                            }}
-                            className="px-3 py-1.5 bg-[#1A0D10] hover:border-red-400 text-red-300 text-xs font-bold uppercase tracking-wider cursor-pointer"
+                {/* Available Stock Quantity Add / Deduct Panel in Full Screen */}
+                {!viewingProduct.fieldSettings?.stockQuantityDeleted &&
+                  (() => {
+                    const viewStock =
+                      typeof viewingProduct.stockQuantity === "number"
+                        ? Math.max(0, viewingProduct.stockQuantity)
+                        : 0;
+                    const viewStep = Math.max(
+                      1,
+                      parseInt(stockStepMap[viewingProduct.id] || "1", 10) || 1
+                    );
+                    return (
+                      <div className="border-b border-[#00D4FF]/35 pb-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs uppercase tracking-wider text-glossy-gold opacity-80">
+                            {viewingProduct.fieldSettings?.stockQuantityLabel ||
+                              "Available Stock"}
+                          </span>
+                          <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/40 text-glossy-gold">
+                            {viewingProduct.fieldSettings
+                              ?.stockQuantityVisible !== false
+                              ? "Shown to Customers"
+                              : "Hidden from Customers"}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                          <span
+                            className={`text-xl font-extrabold ${viewStock > 0 ? "text-glossy-gold" : "text-red-300"
+                              }`}
                           >
-                            − Deduct {viewStep}
-                          </button>
+                            {viewStock}{" "}
+                            <span className="text-xs font-normal uppercase">
+                              {viewStock === 1 ? "Unit" : "Units"} in Stock
+                            </span>
+                          </span>
 
-                          <input
-                            type="number"
-                            min="1"
-                            value={stockStepMap[viewingProduct.id] ?? "1"}
-                            onChange={(e) =>
-                              setStockStepMap((prev) => ({
-                                ...prev,
-                                [viewingProduct.id]: e.target.value,
-                              }))
-                            }
-                            title="Quantity step to add or deduct"
-                            className="auth-input w-14 text-center px-2 py-1 bg-[#0B0B0C] border border-[#00D4FF]/45 text-xs font-bold focus:outline-none"
-                          />
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAdjustProductStock(
+                                  viewingProduct.id,
+                                  -viewStep
+                                )
+                              }
+                              style={{
+                                border: "1px solid rgba(255, 80, 80, 0.65)",
+                              }}
+                              className="px-3 py-1.5 bg-[#1A0D10] hover:border-red-400 text-red-300 text-xs font-bold uppercase tracking-wider cursor-pointer"
+                            >
+                              − Deduct {viewStep}
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAdjustProductStock(
-                                viewingProduct.id,
-                                viewStep
-                              )
-                            }
-                            style={{
-                              border: "1px solid rgba(0, 212, 255, 0.65)",
-                            }}
-                            className="px-3 py-1.5 bg-[#0B0B0C] hover:border-[#7DF9FF] text-glossy-gold text-xs font-bold uppercase tracking-wider cursor-pointer"
-                          >
-                            + Add {viewStep}
-                          </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={stockStepMap[viewingProduct.id] ?? "1"}
+                              onChange={(e) =>
+                                setStockStepMap((prev) => ({
+                                  ...prev,
+                                  [viewingProduct.id]: e.target.value,
+                                }))
+                              }
+                              title="Quantity step to add or deduct"
+                              className="auth-input w-14 text-center px-2 py-1 bg-[#0B0B0C] border border-[#00D4FF]/45 text-xs font-bold focus:outline-none"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAdjustProductStock(
+                                  viewingProduct.id,
+                                  viewStep
+                                )
+                              }
+                              style={{
+                                border: "1px solid rgba(0, 212, 255, 0.65)",
+                              }}
+                              className="px-3 py-1.5 bg-[#0B0B0C] hover:border-[#7DF9FF] text-glossy-gold text-xs font-bold uppercase tracking-wider cursor-pointer"
+                            >
+                              + Add {viewStep}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
 
                 <div className="space-y-3 text-sm">
-                  {viewingProduct.productCode && (
-                    <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#00D4FF]/20">
-                      <p style={{ color: "#E5E7EB" }}>
-                        <strong className="text-glossy-gold">
-                          {viewingProduct.fieldSettings?.productCodeLabel ||
-                            "Product Code"}
-                          :
-                        </strong>{" "}
-                        {viewingProduct.productCode}
-                      </p>
-                      <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold shrink-0">
-                        {viewingProduct.fieldSettings?.productCodeVisible !==
-                        false
-                          ? "Visible"
-                          : "Hidden"}
-                      </span>
-                    </div>
-                  )}
+                  {!viewingProduct.fieldSettings?.productCodeDeleted &&
+                    viewingProduct.productCode && (
+                      <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#00D4FF]/20">
+                        <p style={{ color: "#E5E7EB" }}>
+                          <strong className="text-glossy-gold">
+                            {viewingProduct.fieldSettings?.productCodeLabel ||
+                              "Product Code"}
+                            :
+                          </strong>{" "}
+                          {viewingProduct.productCode}
+                        </p>
+                        <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold shrink-0">
+                          {viewingProduct.fieldSettings?.productCodeVisible !==
+                            false
+                            ? "Visible"
+                            : "Hidden"}
+                        </span>
+                      </div>
+                    )}
 
-                  {viewingProduct.uidNumber && (
-                    <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#00D4FF]/20">
-                      <p style={{ color: "#E5E7EB" }}>
-                        <strong className="text-glossy-gold">
-                          {viewingProduct.fieldSettings?.uidNumberLabel ||
-                            "UID Number"}
-                          :
-                        </strong>{" "}
-                        {viewingProduct.uidNumber}
-                      </p>
-                      <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold shrink-0">
-                        {viewingProduct.fieldSettings?.uidNumberVisible !==
-                        false
-                          ? "Visible"
-                          : "Hidden"}
-                      </span>
-                    </div>
-                  )}
+                  {!viewingProduct.fieldSettings?.uidNumberDeleted &&
+                    viewingProduct.uidNumber && (
+                      <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#00D4FF]/20">
+                        <p style={{ color: "#E5E7EB" }}>
+                          <strong className="text-glossy-gold">
+                            {viewingProduct.fieldSettings?.uidNumberLabel ||
+                              "UID Number"}
+                            :
+                          </strong>{" "}
+                          {viewingProduct.uidNumber}
+                        </p>
+                        <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold shrink-0">
+                          {viewingProduct.fieldSettings?.uidNumberVisible !==
+                            false
+                            ? "Visible"
+                            : "Hidden"}
+                        </span>
+                      </div>
+                    )}
 
-                  {viewingProduct.modelNumber && (
-                    <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#00D4FF]/20">
-                      <p style={{ color: "#E5E7EB" }}>
-                        <strong className="text-glossy-gold">
-                          {viewingProduct.fieldSettings?.modelNumberLabel ||
-                            "Model Number"}
-                          :
-                        </strong>{" "}
-                        {viewingProduct.modelNumber}
-                      </p>
-                      <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold shrink-0">
-                        {viewingProduct.fieldSettings?.modelNumberVisible !==
-                        false
-                          ? "Visible"
-                          : "Hidden"}
-                      </span>
-                    </div>
-                  )}
+                  {!viewingProduct.fieldSettings?.modelNumberDeleted &&
+                    viewingProduct.modelNumber && (
+                      <div className="flex items-center justify-between gap-2 py-1.5 border-b border-[#00D4FF]/20">
+                        <p style={{ color: "#E5E7EB" }}>
+                          <strong className="text-glossy-gold">
+                            {viewingProduct.fieldSettings?.modelNumberLabel ||
+                              "Model Number"}
+                            :
+                          </strong>{" "}
+                          {viewingProduct.modelNumber}
+                        </p>
+                        <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold shrink-0">
+                          {viewingProduct.fieldSettings?.modelNumberVisible !==
+                            false
+                            ? "Visible"
+                            : "Hidden"}
+                        </span>
+                      </div>
+                    )}
 
                   {viewingProduct.customFields?.map((cf) => (
                     <div
@@ -2078,34 +2562,350 @@ export default function ProductsManagerModal({
                     </div>
                   ))}
 
-                  {viewingProduct.description && (
-                    <div className="pt-2 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <strong className="text-glossy-gold uppercase tracking-wider text-xs">
-                          {viewingProduct.fieldSettings?.descriptionLabel ||
-                            "Description"}
-                        </strong>
-                        <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold">
-                          {viewingProduct.fieldSettings?.descriptionVisible !==
-                          false
-                            ? "Visible"
-                            : "Hidden"}
-                        </span>
+                  {!viewingProduct.fieldSettings?.descriptionDeleted &&
+                    viewingProduct.description && (
+                      <div className="pt-2 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <strong className="text-glossy-gold uppercase tracking-wider text-xs">
+                            {viewingProduct.fieldSettings?.descriptionLabel ||
+                              "Description"}
+                          </strong>
+                          <span className="text-[10px] uppercase px-2 py-0.5 border border-[#00D4FF]/35 text-glossy-gold">
+                            {viewingProduct.fieldSettings?.descriptionVisible !==
+                              false
+                              ? "Visible"
+                              : "Hidden"}
+                          </span>
+                        </div>
+                        <p
+                          style={{ color: "#E5E7EB" }}
+                          className="whitespace-pre-wrap leading-relaxed bg-[#0B0B0C] p-3.5 border border-[#00D4FF]/30"
+                        >
+                          {viewingProduct.description}
+                        </p>
                       </div>
-                      <p
-                        style={{ color: "#E5E7EB" }}
-                        className="whitespace-pre-wrap leading-relaxed bg-[#0B0B0C] p-3.5 border border-[#00D4FF]/30"
-                      >
-                        {viewingProduct.description}
-                      </p>
-                    </div>
-                  )}
+                    )}
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* ENLARGED UPLOADED IMAGE POPUP WINDOW FOR PRODUCT DESCRIPTION INSPECTION */}
+      {enlargedDraftImage &&
+        (() => {
+          const activeDraft = drafts.find(
+            (d) => d.draftId === enlargedDraftImage.draftId
+          );
+          if (!activeDraft || activeDraft.images.length === 0) return null;
+          const safeIdx = Math.min(
+            enlargedDraftImage.imageIndex,
+            activeDraft.images.length - 1
+          );
+          const currentImgUrl = activeDraft.images[safeIdx];
+
+          return (
+            <div
+              className="fixed inset-0 z-[150] bg-[#060608]/95 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+              onClick={() => {
+                setEnlargedDraftImage(null);
+                setEnlargedZoomed(false);
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: "#111114",
+                  border: "1.5px solid rgba(255, 30, 39, 0.75)",
+                  boxShadow:
+                    "0 0 45px rgba(255, 30, 39, 0.3), 0 25px 60px rgba(0, 0, 0, 0.9)",
+                  maxHeight: "94vh",
+                }}
+                className="relative w-full max-w-6xl p-5 sm:p-7 flex flex-col overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Popup Top Bar */}
+                <div
+                  style={{ borderBottom: "1px solid rgba(255, 30, 39, 0.4)" }}
+                  className="flex flex-wrap items-center justify-between gap-3 pb-3.5 mb-5 shrink-0"
+                >
+                  <div>
+                    <span className="text-[11px] uppercase tracking-widest text-glossy-gold opacity-85 block">
+                      Enlarged Uploaded Image — Inspect for Product Description
+                    </span>
+                    <h3 className="text-base sm:text-xl font-bold uppercase tracking-wider text-glossy-gold mt-0.5">
+                      {activeDraft.name || "Product Image Preview"} (Image{" "}
+                      {safeIdx + 1} of {activeDraft.images.length})
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Free AI Studio Clean Trigger directly from Enlarged Popup with Pure Color Choices */}
+                    <button
+                      type="button"
+                      disabled={Boolean(
+                        cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
+                      )}
+                      onClick={(e) =>
+                        handleAutoCleanStudioImage(
+                          activeDraft.draftId,
+                          safeIdx,
+                          "white",
+                          e
+                        )
+                      }
+                      title="Clean onto pure, bright studio white background"
+                      style={{ border: "1px solid rgba(255, 255, 255, 0.5)" }}
+                      className="px-2.5 py-1.5 bg-[#1C1C20] hover:bg-[#2A2A30] text-xs font-bold uppercase tracking-wider text-white cursor-pointer"
+                    >
+                      ⚪ Clean White
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={Boolean(
+                        cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
+                      )}
+                      onClick={(e) =>
+                        handleAutoCleanStudioImage(
+                          activeDraft.draftId,
+                          safeIdx,
+                          "dark",
+                          e
+                        )
+                      }
+                      title="Clean onto deep, clean obsidian black background"
+                      style={{ border: "1px solid rgba(255, 30, 39, 0.65)" }}
+                      className="px-2.5 py-1.5 bg-[#141417] hover:border-[#FF6B6B] text-xs font-bold uppercase tracking-wider text-glossy-gold cursor-pointer"
+                    >
+                      ⚫ Clean Black
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={Boolean(
+                        cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
+                      )}
+                      onClick={(e) =>
+                        handleAutoCleanStudioImage(
+                          activeDraft.draftId,
+                          safeIdx,
+                          "auto",
+                          e
+                        )
+                      }
+                      title="Auto-detect product transparency and apply clean background"
+                      style={{ border: "1px solid rgba(0, 212, 255, 0.65)" }}
+                      className="px-2.5 py-1.5 bg-[#0B0B0C] hover:border-[#7DF9FF] text-xs font-bold uppercase tracking-wider text-[#7DF9FF] cursor-pointer"
+                    >
+                      {cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
+                        ? "Cleaning..."
+                        : "✨ Auto Clean"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setEnlargedZoomed((z) => !z)}
+                      style={{ border: "1px solid rgba(0, 212, 255, 0.65)" }}
+                      className="px-3 py-1.5 bg-[#0B0B0C] hover:border-[#7DF9FF] text-xs font-bold uppercase tracking-wider text-glossy-gold cursor-pointer"
+                    >
+                      {enlargedZoomed ? "🔍 1x Fit" : "🔍 2x Zoom"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEnlargedDraftImage(null);
+                        setEnlargedZoomed(false);
+                      }}
+                      aria-label="Close enlarged image popup"
+                      style={{ border: "1.5px solid rgba(255, 30, 39, 0.75)" }}
+                      className="w-9 h-9 flex items-center justify-center text-base font-bold bg-[#141417] hover:border-[#FF6B6B] text-glossy-gold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Split Layout: Large Enlarged Image on Left + Live Product Description Box on Right */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  {/* Left 8 Columns: High-Clarity Enlarged Image Container */}
+                  <div className="lg:col-span-8 flex flex-col space-y-3">
+                    <div
+                      onClick={() => setEnlargedZoomed((z) => !z)}
+                      title="Click image to toggle 1x / 2x zoom"
+                      style={{
+                        backgroundColor: "#0B0B0C",
+                        border: "1.5px solid rgba(0, 212, 255, 0.45)",
+                        minHeight: "56vh",
+                        maxHeight: "68vh",
+                      }}
+                      className="w-full flex items-center justify-center p-3 overflow-auto cursor-zoom-in"
+                    >
+                      <img
+                        src={currentImgUrl}
+                        alt={`Enlarged upload ${safeIdx + 1}`}
+                        style={{
+                          transform: enlargedZoomed ? "scale(1.85)" : "scale(1)",
+                          transformOrigin: "center center",
+                        }}
+                        className="max-h-[62vh] w-auto object-contain transition-transform duration-200 select-none"
+                      />
+                    </div>
+
+                    {/* Multi-Image Thumbnails & Prev/Next Controls */}
+                    {activeDraft.images.length > 1 && (
+                      <div className="flex items-center justify-between gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEnlargedDraftImage({
+                              draftId: activeDraft.draftId,
+                              imageIndex:
+                                (safeIdx - 1 + activeDraft.images.length) %
+                                activeDraft.images.length,
+                            })
+                          }
+                          className="px-3 py-1.5 bg-[#0B0B0C] border border-[#00D4FF]/45 hover:border-[#7DF9FF] text-xs font-bold uppercase text-glossy-gold cursor-pointer"
+                        >
+                          ‹ Prev Image
+                        </button>
+
+                        <div className="flex items-center gap-2 overflow-x-auto py-1">
+                          {activeDraft.images.map((img, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() =>
+                                setEnlargedDraftImage({
+                                  draftId: activeDraft.draftId,
+                                  imageIndex: i,
+                                })
+                              }
+                              className={`w-14 h-14 bg-[#0B0B0C] border-2 p-1 shrink-0 cursor-pointer ${i === safeIdx
+                                  ? "border-[#FF1E27]"
+                                  : "border-[#00D4FF]/30 opacity-65 hover:opacity-100"
+                                }`}
+                            >
+                              <img
+                                src={img}
+                                alt={`Thumb ${i + 1}`}
+                                className="w-full h-full object-contain"
+                              />
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEnlargedDraftImage({
+                              draftId: activeDraft.draftId,
+                              imageIndex:
+                                (safeIdx + 1) % activeDraft.images.length,
+                            })
+                          }
+                          className="px-3 py-1.5 bg-[#0B0B0C] border border-[#00D4FF]/45 hover:border-[#7DF9FF] text-xs font-bold uppercase text-glossy-gold cursor-pointer"
+                        >
+                          Next Image ›
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right 4 Columns: Live Product Name, Codes & Description Editor while viewing enlarged image */}
+                  <div
+                    style={{
+                      backgroundColor: "#0B0B0C",
+                      border: "1.5px solid rgba(255, 30, 39, 0.5)",
+                    }}
+                    className="lg:col-span-4 p-4 sm:p-5 space-y-4 flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      <span className="text-xs font-bold uppercase tracking-wider text-glossy-gold block border-b border-[#00D4FF]/30 pb-2">
+                        Write / Check Product Details While Viewing Image
+                      </span>
+
+                      {!activeDraft.fieldSettings.nameDeleted && (
+                        <div>
+                          <label className="text-[11px] uppercase tracking-wider text-glossy-gold block mb-1">
+                            {activeDraft.fieldSettings.nameLabel ||
+                              "Product Name"}
+                          </label>
+                          <input
+                            type="text"
+                            value={activeDraft.name}
+                            onChange={(e) =>
+                              updateDraft(activeDraft.draftId, (d) => ({
+                                ...d,
+                                name: e.target.value,
+                              }))
+                            }
+                            placeholder="Product name..."
+                            className="auth-input w-full px-3 py-2 bg-[#141417] border border-[#00D4FF]/45 focus:outline-none text-xs"
+                          />
+                        </div>
+                      )}
+
+                      {!activeDraft.fieldSettings.modelNumberDeleted && (
+                        <div>
+                          <label className="text-[11px] uppercase tracking-wider text-glossy-gold block mb-1">
+                            {activeDraft.fieldSettings.modelNumberLabel ||
+                              "Model Number"}
+                          </label>
+                          <input
+                            type="text"
+                            value={activeDraft.modelNumber}
+                            onChange={(e) =>
+                              updateDraft(activeDraft.draftId, (d) => ({
+                                ...d,
+                                modelNumber: e.target.value,
+                              }))
+                            }
+                            placeholder="Model / Part number on box..."
+                            className="auth-input w-full px-3 py-2 bg-[#141417] border border-[#00D4FF]/45 focus:outline-none text-xs"
+                          />
+                        </div>
+                      )}
+
+                      {!activeDraft.fieldSettings.descriptionDeleted && (
+                        <div>
+                          <label className="text-[11px] uppercase tracking-wider text-glossy-gold block mb-1">
+                            {activeDraft.fieldSettings.descriptionLabel ||
+                              "Product Description"}
+                          </label>
+                          <textarea
+                            rows={7}
+                            value={activeDraft.description}
+                            onChange={(e) =>
+                              updateDraft(activeDraft.draftId, (d) => ({
+                                ...d,
+                                description: e.target.value,
+                              }))
+                            }
+                            placeholder="Read the enlarged product image clearly and type the product description, specifications, viscosity, or part details here..."
+                            className="auth-input w-full px-3 py-2.5 bg-[#141417] border border-[#00D4FF]/45 focus:outline-none text-xs sm:text-sm leading-relaxed"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEnlargedDraftImage(null);
+                        setEnlargedZoomed(false);
+                      }}
+                      className="w-full py-2.5 bg-[#1A1215] border border-[#00D4FF]/65 hover:border-[#7DF9FF] text-xs font-bold uppercase tracking-widest text-glossy-gold cursor-pointer"
+                    >
+                      ✓ Done Checking Image
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </>
   );
 }

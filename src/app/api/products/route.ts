@@ -37,6 +37,10 @@ function sanitizeFieldSettings(
       typeof obj.nameVisible === "boolean"
         ? obj.nameVisible
         : fallback.nameVisible,
+    nameDeleted:
+      typeof obj.nameDeleted === "boolean"
+        ? obj.nameDeleted
+        : Boolean(fallback.nameDeleted),
     priceLabel:
       typeof obj.priceLabel === "string" && obj.priceLabel.trim()
         ? obj.priceLabel.trim()
@@ -45,6 +49,10 @@ function sanitizeFieldSettings(
       typeof obj.priceVisible === "boolean"
         ? obj.priceVisible
         : fallback.priceVisible,
+    priceDeleted:
+      typeof obj.priceDeleted === "boolean"
+        ? obj.priceDeleted
+        : Boolean(fallback.priceDeleted),
     stockQuantityLabel:
       typeof obj.stockQuantityLabel === "string" &&
       obj.stockQuantityLabel.trim()
@@ -54,6 +62,10 @@ function sanitizeFieldSettings(
       typeof obj.stockQuantityVisible === "boolean"
         ? obj.stockQuantityVisible
         : fallback.stockQuantityVisible ?? true,
+    stockQuantityDeleted:
+      typeof obj.stockQuantityDeleted === "boolean"
+        ? obj.stockQuantityDeleted
+        : Boolean(fallback.stockQuantityDeleted),
     productCodeLabel:
       typeof obj.productCodeLabel === "string" && obj.productCodeLabel.trim()
         ? obj.productCodeLabel.trim()
@@ -62,6 +74,10 @@ function sanitizeFieldSettings(
       typeof obj.productCodeVisible === "boolean"
         ? obj.productCodeVisible
         : fallback.productCodeVisible,
+    productCodeDeleted:
+      typeof obj.productCodeDeleted === "boolean"
+        ? obj.productCodeDeleted
+        : Boolean(fallback.productCodeDeleted),
     uidNumberLabel:
       typeof obj.uidNumberLabel === "string" && obj.uidNumberLabel.trim()
         ? obj.uidNumberLabel.trim()
@@ -70,6 +86,10 @@ function sanitizeFieldSettings(
       typeof obj.uidNumberVisible === "boolean"
         ? obj.uidNumberVisible
         : fallback.uidNumberVisible,
+    uidNumberDeleted:
+      typeof obj.uidNumberDeleted === "boolean"
+        ? obj.uidNumberDeleted
+        : Boolean(fallback.uidNumberDeleted),
     modelNumberLabel:
       typeof obj.modelNumberLabel === "string" && obj.modelNumberLabel.trim()
         ? obj.modelNumberLabel.trim()
@@ -78,6 +98,10 @@ function sanitizeFieldSettings(
       typeof obj.modelNumberVisible === "boolean"
         ? obj.modelNumberVisible
         : fallback.modelNumberVisible,
+    modelNumberDeleted:
+      typeof obj.modelNumberDeleted === "boolean"
+        ? obj.modelNumberDeleted
+        : Boolean(fallback.modelNumberDeleted),
     descriptionLabel:
       typeof obj.descriptionLabel === "string" && obj.descriptionLabel.trim()
         ? obj.descriptionLabel.trim()
@@ -86,6 +110,10 @@ function sanitizeFieldSettings(
       typeof obj.descriptionVisible === "boolean"
         ? obj.descriptionVisible
         : fallback.descriptionVisible,
+    descriptionDeleted:
+      typeof obj.descriptionDeleted === "boolean"
+        ? obj.descriptionDeleted
+        : Boolean(fallback.descriptionDeleted),
   };
 }
 
@@ -114,11 +142,28 @@ function sanitizeCustomFields(raw: unknown): CustomProductField[] {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const categorySlug = searchParams.get("categorySlug")?.trim().toLowerCase();
+  const brandQuery = searchParams.get("brand")?.trim().toLowerCase();
 
   const products = readProducts();
-  const filtered = categorySlug
+  let filtered = categorySlug
     ? products.filter((p) => p.categorySlug.toLowerCase() === categorySlug)
     : products;
+
+  if (brandQuery) {
+    filtered = filtered.filter((p) => {
+      const explicitBrand = (p.brand || "").trim().toLowerCase();
+      if (explicitBrand === brandQuery) return true;
+      const inName = (p.name || "").toLowerCase().includes(brandQuery);
+      const inDesc = (p.description || "").toLowerCase().includes(brandQuery);
+      const inCustom = (p.customFields || []).some(
+        (cf) =>
+          (cf.value || "").toLowerCase().includes(brandQuery) ||
+          ((cf.label || "").toLowerCase() === "brand" &&
+            (cf.value || "").toLowerCase() === brandQuery)
+      );
+      return inName || inDesc || inCustom;
+    });
+  }
 
   return NextResponse.json({ products: filtered }, { status: 200 });
 }
@@ -179,6 +224,7 @@ export async function POST(request: Request) {
           id: `prod-${crypto.randomUUID()}`,
           categorySlug: matchedCat ? matchedCat.slug : catSlug,
           categoryLabel: catLabel,
+          brand: typeof item.brand === "string" ? item.brand.trim() : "",
           images: savedImages,
           name: typeof item.name === "string" ? item.name.trim() : "",
           productCode:
@@ -269,6 +315,7 @@ export async function POST(request: Request) {
       id: `prod-${crypto.randomUUID()}`,
       categorySlug: matchedCat ? matchedCat.slug : categorySlug,
       categoryLabel,
+      brand: typeof body.brand === "string" ? body.brand.trim() : "",
       images: savedImages,
       name,
       productCode,
@@ -366,6 +413,10 @@ export async function PUT(request: Request) {
 
     const name =
       typeof body.name === "string" ? body.name.trim() : products[idx].name;
+    const brand =
+      typeof body.brand === "string"
+        ? body.brand.trim()
+        : products[idx].brand || "";
     const productCode =
       typeof body.productCode === "string"
         ? body.productCode.trim()
@@ -410,6 +461,7 @@ export async function PUT(request: Request) {
       ...products[idx],
       categorySlug: matchedCat ? matchedCat.slug : categorySlug,
       categoryLabel,
+      brand,
       images: savedImages,
       name,
       productCode,
