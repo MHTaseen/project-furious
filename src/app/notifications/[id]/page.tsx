@@ -3,6 +3,7 @@
 import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import AuthModal, { AuthenticatedUser } from "@/components/AuthModal";
 
 interface BookingReply {
   id: string;
@@ -49,6 +50,9 @@ export default function NotificationDetailPage({
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthenticatedUser | null>(null);
+  const [httpStatus, setHttpStatus] = useState<number>(200);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,13 +67,18 @@ export default function NotificationDetailPage({
       const bkData = await bkRes.json();
       const meData = await meRes.json();
 
+      setHttpStatus(bkRes.status);
+      const userObj = meData?.user || null;
+      setCurrentUser(userObj);
+      setIsAdmin(userObj?.role === "admin");
+
       if (bkRes.ok && bkData?.booking) {
         setBooking(bkData.booking);
+        setError(null);
       } else {
+        setBooking(null);
         setError(bkData?.error || "Booking notification not found.");
       }
-
-      setIsAdmin(meData?.user?.role === "admin");
     } catch {
       setError("Failed to load booking notification details.");
     } finally {
@@ -79,7 +88,26 @@ export default function NotificationDetailPage({
 
   useEffect(() => {
     loadBookingDetail();
+    const handleAuthChange = () => {
+      loadBookingDetail();
+    };
+    window.addEventListener("furious-auth-change", handleAuthChange);
+    return () => {
+      window.removeEventListener("furious-auth-change", handleAuthChange);
+    };
   }, [id]);
+
+  const handleSwitchAccount = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      setCurrentUser(null);
+      setIsAdmin(false);
+      window.dispatchEvent(new Event("furious-auth-change"));
+      setIsAuthOpen(true);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleUpdateStatus = async (
     nextStatus: "confirmed" | "cancelled" | "pending"
@@ -226,16 +254,107 @@ export default function NotificationDetailPage({
             </p>
           </div>
         ) : !booking ? (
-          <div className="py-16 text-center space-y-4">
-            <p className="text-sm uppercase tracking-wider text-glossy-gold">
-              Booking notification not found.
-            </p>
-            <Link
-              href={isAdmin ? "/admin" : "/"}
-              className="inline-block px-4 py-2 text-xs uppercase tracking-wider bg-[#141417] border border-[#00D4FF]/55 text-glossy-gold"
-            >
-              Return Home
-            </Link>
+          <div
+            style={{
+              backgroundColor: "#111114",
+              border: "1.5px solid rgba(0, 212, 255, 0.4)",
+              boxShadow: "0 0 30px rgba(0, 212, 255, 0.15)",
+            }}
+            className="py-12 px-6 sm:px-10 text-center space-y-5 max-w-xl mx-auto"
+          >
+            {/* Lock / Security Shield Icon */}
+            <div className="w-14 h-14 mx-auto rounded-full bg-[#141417] border border-[#00D4FF]/60 shadow-[0_0_15px_rgba(0,212,255,0.3)] flex items-center justify-center">
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#00D4FF"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+
+            {httpStatus === 401 ? (
+              /* Case 1: Visitor is not logged in at all */
+              <div className="space-y-3">
+                <h2 className="text-lg sm:text-xl font-bold uppercase tracking-wider text-glossy-gold">
+                  Sign In Required
+                </h2>
+                <p style={{ color: "#9CA3AF" }} className="text-xs sm:text-sm">
+                  This booking notification is private and protected. Please sign in to the account that placed the booking to view its details.
+                </p>
+                <div className="flex items-center justify-center gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsAuthOpen(true)}
+                    className="px-5 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider bg-[#141417] border border-[#00D4FF]/70 hover:border-[#7DF9FF] text-glossy-gold shadow-[0_0_12px_rgba(0,212,255,0.3)] transition-all cursor-pointer"
+                  >
+                    Sign In / Register
+                  </button>
+                  <Link
+                    href="/"
+                    className="px-5 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider bg-[#141417] border border-gray-700 hover:border-gray-500 text-gray-300 transition-colors"
+                  >
+                    Return Home
+                  </Link>
+                </div>
+              </div>
+            ) : httpStatus === 403 ? (
+              /* Case 2: Visitor is logged into their own account, but the booking belongs to someone else! */
+              <div className="space-y-3">
+                <h2 className="text-lg sm:text-xl font-bold uppercase tracking-wider text-red-400">
+                  Access Denied
+                </h2>
+                <p style={{ color: "#D1D5DB" }} className="text-xs sm:text-sm leading-relaxed">
+                  You are signed in as{" "}
+                  <span className="text-glossy-gold font-semibold">
+                    {currentUser?.name || "Customer"} ({currentUser?.phone})
+                  </span>
+                  . This booking was placed by another customer and cannot be viewed or modified from your account.
+                </p>
+                <p style={{ color: "#9CA3AF" }} className="text-xs">
+                  Each customer&apos;s bookings and personal information are strictly private.
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+                  <Link
+                    href="/"
+                    className="px-5 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider bg-[#141417] border border-[#00D4FF]/60 hover:border-[#7DF9FF] text-glossy-gold transition-colors"
+                  >
+                    Return Home
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleSwitchAccount}
+                    className="px-5 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider bg-[#141417] border border-amber-500/60 hover:border-amber-400 text-amber-300 transition-colors cursor-pointer"
+                  >
+                    Switch Account
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Case 3: 404 Not Found or other error */
+              <div className="space-y-2">
+                <h2 className="text-lg sm:text-xl font-bold uppercase tracking-wider text-glossy-gold">
+                  Booking Not Found
+                </h2>
+                <p style={{ color: "#9CA3AF" }} className="text-xs sm:text-sm">
+                  {error || "The booking notification you requested could not be found."}
+                </p>
+                <div className="pt-4">
+                  <Link
+                    href="/"
+                    className="inline-block px-5 py-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider bg-[#141417] border border-[#00D4FF]/55 text-glossy-gold hover:border-[#7DF9FF] transition-colors"
+                  >
+                    Return Home
+                  </Link>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -525,6 +644,18 @@ export default function NotificationDetailPage({
           </>
         )}
       </div>
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        user={currentUser}
+        onAuthSuccess={(updatedUser) => {
+          setCurrentUser(updatedUser);
+          setIsAuthOpen(false);
+          loadBookingDetail();
+          window.dispatchEvent(new Event("furious-auth-change"));
+        }}
+      />
     </div>
   );
 }

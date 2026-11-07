@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import CategoryDrawer from "@/components/CategoryDrawer";
 import Footer from "@/components/Footer";
+import FloatingChat from "@/components/FloatingChat";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -48,6 +49,9 @@ export default function RootLayout({
 
         {/* Universal Footer across all pages */}
         <Footer />
+
+        {/* Universal Floating Live Messenger / Chat across all pages */}
+        <FloatingChat />
       </body>
     </html>
   );

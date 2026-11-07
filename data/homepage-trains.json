@@ -1,0 +1,61 @@
+{
+  "brandLogos": [
+    {
+      "id": "brand-1",
+      "name": "Liqui Moly",
+      "src": "/images/liqui-moly.png"
+    },
+    {
+      "id": "brand-2",
+      "name": "Motul",
+      "src": "/images/motul.png"
+    },
+    {
+      "id": "brand-3",
+      "name": "Repsol",
+      "src": "/images/repsol.png"
+    },
+    {
+      "id": "brand-4",
+      "name": "Motocare",
+      "src": "/images/motocare.png"
+    },
+    {
+      "id": "brand-5",
+      "name": "RCB",
+      "src": "/images/rcb.png"
+    },
+    {
+      "id": "brand-6",
+      "name": "Flamingo",
+      "src": "/images/flamingo.jpg"
+    },
+    {
+      "id": "brand-7",
+      "name": "Faito",
+      "src": "/images/faito.jpg"
+    }
+  ],
+  "showcaseImages": [
+    {
+      "id": "showcase-1",
+      "alt": "Windshield Visor",
+      "src": "/images/bulletin-1.jpg"
+    },
+    {
+      "id": "showcase-2",
+      "alt": "Yamaha R15 Black Side Fairing",
+      "src": "/images/bulletin-2.jpg"
+    },
+    {
+      "id": "showcase-3",
+      "alt": "R15 Version 4.0 Side Panel",
+      "src": "/images/bulletin-3.jpg"
+    },
+    {
+      "id": "showcase-4",
+      "alt": "Yellow Front Mask Fairing",
+      "src": "/images/bulletin-4.jpg"
+    }
+  ]
+}

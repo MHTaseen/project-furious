@@ -35,9 +35,18 @@ export interface ContactUsData {
   additionalNote: string;
 }
 
+export interface PolicySection {
+  title: string;
+  description: string;
+}
+
 export interface SiteInfoData {
   about: AboutUsData;
   contact: ContactUsData;
+  policies?: {
+    lastUpdated?: string;
+    sections: PolicySection[];
+  };
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -107,6 +116,31 @@ const DEFAULT_SITE_INFO: SiteInfoData = {
     additionalNote:
       "Feel free to call, WhatsApp, or visit our showroom for genuine parts, helmets, engine oils, and bike modification consultations.",
   },
+  policies: {
+    lastUpdated: "November 2026",
+    sections: [
+      {
+        title: "100% Authenticity Guarantee",
+        description:
+          "Every product sold at Furious Moto Shop—from engine oils to brake components—is 100% genuine, factory-sealed, and sourced directly from official manufacturers and authorized distributors.",
+      },
+      {
+        title: "Order & Booking Policy",
+        description:
+          "Customers can book products directly online. Once booked, our support team confirms stock availability and delivery timeline with you before final fulfillment.",
+      },
+      {
+        title: "Return & Replacement Policy",
+        description:
+          "Parts damaged in transit or defective from the factory are eligible for replacement within 48 hours of receipt. Items must remain uninstalled and in original packaging.",
+      },
+      {
+        title: "Privacy & Customer Data",
+        description:
+          "We value your privacy. Customer contact details and delivery addresses are never shared with third parties and are strictly used to fulfill your orders and support inquiries.",
+      },
+    ],
+  },
 };
 
 function ensureSiteInfoFile(): void {
@@ -170,6 +204,7 @@ export function readSiteInfo(): SiteInfoData {
         ...DEFAULT_SITE_INFO.contact,
         ...(parsed?.contact || {}),
       },
+      policies: parsed?.policies || DEFAULT_SITE_INFO.policies,
     };
   } catch {
     return DEFAULT_SITE_INFO;

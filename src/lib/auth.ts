@@ -12,6 +12,7 @@ export interface UserRecord {
   passwordPlain?: string;
   role: "customer" | "admin";
   createdAt: string;
+  sessionVersion?: number;
 }
 
 export interface PublicUser {
@@ -109,11 +110,15 @@ export function writeUsers(users: UserRecord[]): void {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
 }
 
-export function createSessionToken(user: PublicUser): string {
+export function createSessionToken(
+  user: PublicUser,
+  sessionVersion: number = 1
+): string {
   const payload = Buffer.from(
     JSON.stringify({
       ...user,
-      exp: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
+      version: sessionVersion,
+      exp: Date.now() + 1000 * 60 * 60 * 2, // 2-hour inactivity session lifetime
     })
   ).toString("base64url");
   const signature = crypto
@@ -138,15 +143,39 @@ export function verifySessionToken(token: string): PublicUser | null {
 
     const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf-8"));
     if (!data.exp || Date.now() > data.exp) return null;
+
+    // Server-side session invalidation: ensure token version matches current active session in database
+    const users = readUsers();
+    const dbUser = users.find((u) => u.id === data.id);
+    if (!dbUser) return null;
+
+    const currentVersion = dbUser.sessionVersion || 1;
+    if ((data.version || 1) !== currentVersion) {
+      return null;
+    }
+
     return {
-      id: data.id,
-      name: data.name,
-      phone: data.phone,
-      address: data.address,
-      email: data.email,
-      role: data.role,
+      id: dbUser.id,
+      name: dbUser.name,
+      phone: dbUser.phone,
+      address: dbUser.address,
+      email: dbUser.email,
+      role: dbUser.role,
     };
   } catch {
     return null;
+  }
+}
+
+export function invalidateUserSessions(userId: string): void {
+  try {
+    const users = readUsers();
+    const user = users.find((u) => u.id === userId);
+    if (user) {
+      user.sessionVersion = (user.sessionVersion || 1) + 1;
+      writeUsers(users);
+    }
+  } catch {
+    // Ignore error
   }
 }

@@ -26,9 +26,9 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length !== 6) {
       return NextResponse.json(
-        { error: "Password must be at least 6 digits/characters." },
+        { error: "Password must be exactly 6 characters." },
         { status: 400 }
       );
     }
@@ -63,6 +63,7 @@ export async function POST(request: Request) {
       passwordPlain: password,
       role: "customer",
       createdAt: new Date().toISOString(),
+      sessionVersion: 1,
     };
 
     users.push(newUser);
@@ -77,18 +78,18 @@ export async function POST(request: Request) {
       role: newUser.role,
     };
 
-    const token = createSessionToken(publicUser);
+    const token = createSessionToken(publicUser, 1);
     const response = NextResponse.json(
       { user: publicUser, message: "Account created successfully." },
       { status: 201 }
     );
 
+    // True browser session cookie (no maxAge/expires): automatically cleared by browser on close
     response.cookies.set("furious_session", token, {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;

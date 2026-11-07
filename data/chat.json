@@ -1,0 +1,85 @@
+{
+  "conversations": {
+    "10834721-dd15-4b43-9a62-6ae26f2163bf": {
+      "id": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "customerName": "Mahmudul Hassan Taseen",
+      "customerPhone": "01600332120",
+      "customerRole": "customer",
+      "createdAt": "2026-11-02T14:22:08.580Z",
+      "updatedAt": "2026-11-02T16:04:44.307Z",
+      "lastMessageSnippet": "hi",
+      "unreadForAdmin": 0,
+      "unreadForCustomer": 0
+    }
+  },
+  "messages": [
+    {
+      "id": "msg-1793629743405-h2y3s",
+      "conversationId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderName": "Mahmudul Hassan Taseen",
+      "senderRole": "customer",
+      "text": "price?",
+      "attachments": [],
+      "createdAt": "2026-11-02T14:29:03.405Z"
+    },
+    {
+      "id": "msg-1793629762635-d8qej",
+      "conversationId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderId": "admin-mridul-1",
+      "senderName": "Mridul",
+      "senderRole": "admin",
+      "text": "3000",
+      "attachments": [],
+      "createdAt": "2026-11-02T14:29:22.635Z"
+    },
+    {
+      "id": "msg-1793630370234-m3au2",
+      "conversationId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderName": "Mahmudul Hassan Taseen",
+      "senderRole": "customer",
+      "text": "",
+      "attachments": [
+        {
+          "id": "att-1793630370178-gst6v",
+          "type": "audio",
+          "url": "/uploads/chat/chat-1793630370177-a6c56083.webm",
+          "filename": "voice-msg-1793630369694.webm",
+          "sizeBytes": 56251,
+          "mimeType": "audio/webm;codecs=opus"
+        }
+      ],
+      "createdAt": "2026-11-02T14:39:30.234Z"
+    },
+    {
+      "id": "msg-1793631985115-9cidf",
+      "conversationId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderName": "Mahmudul Hassan Taseen",
+      "senderRole": "customer",
+      "text": "",
+      "attachments": [
+        {
+          "id": "att-1793631985063-uw9uj",
+          "type": "audio",
+          "url": "/uploads/chat/chat-1793631985061-29aa8909.webm",
+          "filename": "voice-msg-1793631984434.webm",
+          "sizeBytes": 29823,
+          "mimeType": "audio/webm;codecs=opus"
+        }
+      ],
+      "createdAt": "2026-11-02T15:06:25.115Z"
+    },
+    {
+      "id": "msg-1793635484307-e95t7",
+      "conversationId": "10834721-dd15-4b43-9a62-6ae26f2163bf",
+      "senderId": "admin-mridul-1",
+      "senderName": "Mridul",
+      "senderRole": "admin",
+      "text": "hi",
+      "attachments": [],
+      "createdAt": "2026-11-02T16:04:44.307Z"
+    }
+  ]
+}

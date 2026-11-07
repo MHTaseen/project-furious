@@ -4,6 +4,7 @@ import {
   PublicUser,
   readUsers,
   verifyPassword,
+  writeUsers,
 } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -16,6 +17,13 @@ export async function POST(request: Request) {
     if (!phoneInput || !password) {
       return NextResponse.json(
         { error: "Phone Number and Password are required." },
+        { status: 400 }
+      );
+    }
+
+    if (password.length !== 6) {
+      return NextResponse.json(
+        { error: "Password must be exactly 6 characters." },
         { status: 400 }
       );
     }
@@ -36,6 +44,11 @@ export async function POST(request: Request) {
       );
     }
 
+    // Increment sessionVersion on every fresh sign-in to revoke any old sessions across other browsers/devices
+    const nextVersion = (user.sessionVersion || 1) + 1;
+    user.sessionVersion = nextVersion;
+    writeUsers(users);
+
     const publicUser: PublicUser = {
       id: user.id,
       name: user.name,
@@ -45,18 +58,18 @@ export async function POST(request: Request) {
       role: user.role,
     };
 
-    const token = createSessionToken(publicUser);
+    const token = createSessionToken(publicUser, nextVersion);
     const response = NextResponse.json(
       { user: publicUser, message: "Signed in successfully." },
       { status: 200 }
     );
 
+    // True browser session cookie (no maxAge/expires): automatically cleared by the browser when closed
     response.cookies.set("furious_session", token, {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;

@@ -55,7 +55,7 @@ function sanitizeFieldSettings(
         : Boolean(fallback.priceDeleted),
     stockQuantityLabel:
       typeof obj.stockQuantityLabel === "string" &&
-      obj.stockQuantityLabel.trim()
+        obj.stockQuantityLabel.trim()
         ? obj.stockQuantityLabel.trim()
         : fallback.stockQuantityLabel || "Stock Quantity",
     stockQuantityVisible:
@@ -145,8 +145,13 @@ export async function GET(request: Request) {
   const brandQuery = searchParams.get("brand")?.trim().toLowerCase();
 
   const products = readProducts();
+  const normalizedSlug = categorySlug ? categorySlug.replace(/\s+/g, "-") : "";
   let filtered = categorySlug
-    ? products.filter((p) => p.categorySlug.toLowerCase() === categorySlug)
+    ? products.filter(
+      (p) =>
+        p.categorySlug.toLowerCase() === categorySlug ||
+        (normalizedSlug && p.categorySlug.toLowerCase() === normalizedSlug)
+    )
     : products;
 
   if (brandQuery) {
@@ -162,6 +167,49 @@ export async function GET(request: Request) {
             (cf.value || "").toLowerCase() === brandQuery)
       );
       return inName || inDesc || inCustom;
+    });
+  }
+
+  const searchQuery = (
+    searchParams.get("q") ||
+    searchParams.get("search") ||
+    ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (searchQuery) {
+    filtered = filtered.filter((p) => {
+      const matchName = (p.name || "").toLowerCase().includes(searchQuery);
+      const matchCat =
+        (p.categoryLabel || "").toLowerCase().includes(searchQuery) ||
+        (p.categorySlug || "").toLowerCase().includes(searchQuery);
+      const matchBrand = (p.brand || "").toLowerCase().includes(searchQuery);
+      const matchCode = (p.productCode || "").toLowerCase().includes(searchQuery);
+      const matchUid = (p.uidNumber || "").toLowerCase().includes(searchQuery);
+      const matchModel = (p.modelNumber || "").toLowerCase().includes(searchQuery);
+      const matchDesc = (p.description || "").toLowerCase().includes(searchQuery);
+      const matchPrice = (p.price || "").toLowerCase().includes(searchQuery);
+      const matchStock = String(p.stockQuantity ?? "")
+        .toLowerCase()
+        .includes(searchQuery);
+      const matchCustom = (p.customFields || []).some(
+        (cf) =>
+          (cf.label || "").toLowerCase().includes(searchQuery) ||
+          (cf.value || "").toLowerCase().includes(searchQuery)
+      );
+      return (
+        matchName ||
+        matchCat ||
+        matchBrand ||
+        matchCode ||
+        matchUid ||
+        matchModel ||
+        matchDesc ||
+        matchPrice ||
+        matchStock ||
+        matchCustom
+      );
     });
   }
 
@@ -197,8 +245,8 @@ export async function POST(request: Request) {
           typeof item.categorySlug === "string"
             ? item.categorySlug.trim()
             : typeof body.categorySlug === "string"
-            ? body.categorySlug.trim()
-            : "";
+              ? body.categorySlug.trim()
+              : "";
         if (!catSlug) continue;
 
         const matchedCat = categories.find(
@@ -218,7 +266,7 @@ export async function POST(request: Request) {
         const parsedStock =
           item.stockQuantity !== undefined && item.stockQuantity !== ""
             ? Math.max(0, parseInt(String(item.stockQuantity), 10) || 0)
-            : 0;
+            : 1;
 
         const newProd: ProductRecord = {
           id: `prod-${crypto.randomUUID()}`,
@@ -309,7 +357,7 @@ export async function POST(request: Request) {
     const singleStock =
       body.stockQuantity !== undefined && body.stockQuantity !== ""
         ? Math.max(0, parseInt(String(body.stockQuantity), 10) || 0)
-        : 0;
+        : 1;
 
     const newProduct: ProductRecord = {
       id: `prod-${crypto.randomUUID()}`,
@@ -454,8 +502,8 @@ export async function PUT(request: Request) {
       body.stockQuantity !== undefined && body.stockQuantity !== ""
         ? Math.max(0, parseInt(String(body.stockQuantity), 10) || 0)
         : typeof products[idx].stockQuantity === "number"
-        ? products[idx].stockQuantity
-        : 0;
+          ? products[idx].stockQuantity
+          : 0;
 
     products[idx] = {
       ...products[idx],

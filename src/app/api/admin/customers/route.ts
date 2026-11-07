@@ -62,9 +62,9 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (password && password.length < 6) {
+    if (password && password.length !== 6) {
       return NextResponse.json(
-        { error: "Password must be at least 6 digits/characters." },
+        { error: "Password must be exactly 6 characters." },
         { status: 400 }
       );
     }

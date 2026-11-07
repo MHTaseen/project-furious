@@ -24,11 +24,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": false,
       "descriptionLabel": "Description",
-      "descriptionVisible": false
+      "descriptionVisible": false,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:33:08.889Z",
-    "updatedAt": "2026-10-31T15:36:50.631Z"
+    "updatedAt": "2026-10-31T15:36:50.631Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-b84bcd67-2d6d-45a8-aa22-0b389745f8ab",
@@ -55,11 +58,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": false,
       "descriptionLabel": "Description",
-      "descriptionVisible": false
+      "descriptionVisible": false,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:33:08.889Z",
-    "updatedAt": "2026-10-31T15:33:08.889Z"
+    "updatedAt": "2026-10-31T15:33:08.889Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-f24afbf6-9be2-49b4-8abb-d2efab368034",
@@ -86,11 +92,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": false,
       "descriptionLabel": "Description",
-      "descriptionVisible": false
+      "descriptionVisible": false,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:22:23.230Z",
-    "updatedAt": "2026-10-31T15:22:23.230Z"
+    "updatedAt": "2026-10-31T15:22:23.230Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-7ecc8c23-e864-4c39-af13-954f8b594100",
@@ -117,11 +126,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": true,
       "descriptionLabel": "Description",
-      "descriptionVisible": true
+      "descriptionVisible": true,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:22:23.230Z",
-    "updatedAt": "2026-10-31T15:25:45.560Z"
+    "updatedAt": "2026-10-31T15:25:45.560Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-6b36f145-cf43-415d-b41c-afad093ddb0b",
@@ -148,11 +160,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": false,
       "descriptionLabel": "Description",
-      "descriptionVisible": false
+      "descriptionVisible": false,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:22:23.230Z",
-    "updatedAt": "2026-10-31T15:25:56.155Z"
+    "updatedAt": "2026-10-31T15:25:56.155Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-5f252d56-72ee-4779-b502-1989699aed9c",
@@ -179,11 +194,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": false,
       "descriptionLabel": "Description",
-      "descriptionVisible": false
+      "descriptionVisible": false,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:22:23.230Z",
-    "updatedAt": "2026-10-31T15:26:09.352Z"
+    "updatedAt": "2026-10-31T15:26:09.352Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-c7e8e56a-b4ad-47bd-b127-f1e1cdd68ea7",
@@ -210,11 +228,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": true,
       "descriptionLabel": "Description",
-      "descriptionVisible": true
+      "descriptionVisible": true,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:18:34.548Z",
-    "updatedAt": "2026-10-31T15:18:34.548Z"
+    "updatedAt": "2026-10-31T15:18:34.548Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-8f0dab0d-af87-47a1-b1de-770deca7a5f9",
@@ -241,11 +262,14 @@
       "modelNumberLabel": "Model Number",
       "modelNumberVisible": false,
       "descriptionLabel": "Description",
-      "descriptionVisible": false
+      "descriptionVisible": false,
+      "stockQuantityVisible": true,
+      "stockQuantityLabel": "Available Stock"
     },
     "customFields": [],
     "createdAt": "2026-10-31T15:18:34.548Z",
-    "updatedAt": "2026-10-31T15:18:34.548Z"
+    "updatedAt": "2026-10-31T15:18:34.548Z",
+    "stockQuantity": 1
   },
   {
     "id": "prod-0d695992-8005-49de-93c4-6c056103ecf5",
@@ -287,6 +311,6 @@
     "createdAt": "2026-10-31T15:18:34.548Z",
     "updatedAt": "2026-11-01T15:45:12.874Z",
     "brand": "RCB",
-    "stockQuantity": 0
+    "stockQuantity": 1
   }
 ]

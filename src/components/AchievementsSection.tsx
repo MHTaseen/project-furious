@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 
 interface AchievementsData {
   customersCount: number;
-  soldProducts: number;
+  inStockCount: number;
+  categoriesCount: number;
   averageRating: number;
   reviewsCount: number;
 }
@@ -12,7 +13,8 @@ interface AchievementsData {
 export default function AchievementsSection() {
   const [data, setData] = useState<AchievementsData>({
     customersCount: 0,
-    soldProducts: 0,
+    inStockCount: 0,
+    categoriesCount: 0,
     averageRating: 0,
     reviewsCount: 0,
   });
@@ -24,7 +26,8 @@ export default function AchievementsSection() {
         if (typeof resData?.customersCount === "number") {
           setData({
             customersCount: resData.customersCount,
-            soldProducts: resData.soldProducts ?? 0,
+            inStockCount: resData.inStockCount ?? 0,
+            categoriesCount: resData.categoriesCount ?? 0,
             averageRating: resData.averageRating ?? 0,
             reviewsCount: resData.reviewsCount ?? 0,
           });
@@ -36,11 +39,17 @@ export default function AchievementsSection() {
   useEffect(() => {
     loadAchievements();
     const handleUpdate = () => loadAchievements();
+
     window.addEventListener("furious-auth-change", handleUpdate);
     window.addEventListener("furious-sales-change", handleUpdate);
+    window.addEventListener("furious-products-change", handleUpdate);
+    window.addEventListener("furious-categories-change", handleUpdate);
+
     return () => {
       window.removeEventListener("furious-auth-change", handleUpdate);
       window.removeEventListener("furious-sales-change", handleUpdate);
+      window.removeEventListener("furious-products-change", handleUpdate);
+      window.removeEventListener("furious-categories-change", handleUpdate);
     };
   }, []);
 
@@ -56,8 +65,8 @@ export default function AchievementsSection() {
     return (
       <svg
         key={starIndex}
-        width="32"
-        height="32"
+        width="28"
+        height="28"
         viewBox="0 0 24 24"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -106,56 +115,84 @@ export default function AchievementsSection() {
   };
 
   return (
-    <section className="w-full py-10 px-6 sm:px-10">
-      <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-wider text-glossy-gold mb-6">
-        Achievements
-      </h2>
+    <section className="w-full py-12 px-6 sm:px-10">
+      <div className="flex items-center gap-3 mb-6">
+        <span className="w-1.5 h-6 rounded-full bg-[#FF1E27] shadow-[0_0_10px_#FF1E27]" />
+        <h2 className="text-2xl sm:text-3xl font-extrabold uppercase tracking-wider text-glossy-gold">
+          Achievements
+        </h2>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* 1. Customers (excluding admins) */}
         <div
           style={{
-            backgroundColor: "#111114",
+            background:
+              "radial-gradient(ellipse at top, rgba(255, 30, 39, 0.12), transparent 70%), #111114",
             border: "1.5px solid rgba(255, 30, 39, 0.55)",
-            boxShadow: "0 0 18px rgba(255, 30, 39, 0.18)",
+            boxShadow:
+              "0 0 24px rgba(255, 30, 39, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.08)",
           }}
-          className="p-6 flex flex-col items-center justify-center text-center"
+          className="p-7 rounded-2xl flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:border-[#FF5A5F] hover:shadow-[0_0_30px_rgba(255,30,39,0.35)] transition-all duration-300 group"
         >
-          <h3 className="text-base sm:text-lg font-semibold uppercase tracking-[0.18em] text-glossy-gold mb-3">
+          <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-glossy-gold mb-3 group-hover:scale-105 transition-transform">
             Customers
           </h3>
-          <p className="text-3xl sm:text-4xl font-bold text-glossy-gold">
+          <p className="text-3xl sm:text-4xl font-extrabold text-glossy-gold tracking-wider drop-shadow-[0_2px_12px_rgba(255,30,39,0.3)]">
             {data.customersCount}
           </p>
         </div>
 
-        {/* 2. Sold Products */}
+        {/* 2. In Stock (Total products stock quantity) */}
         <div
           style={{
-            backgroundColor: "#111114",
+            background:
+              "radial-gradient(ellipse at top, rgba(255, 30, 39, 0.12), transparent 70%), #111114",
             border: "1.5px solid rgba(255, 30, 39, 0.55)",
-            boxShadow: "0 0 18px rgba(255, 30, 39, 0.18)",
+            boxShadow:
+              "0 0 24px rgba(255, 30, 39, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.08)",
           }}
-          className="p-6 flex flex-col items-center justify-center text-center"
+          className="p-7 rounded-2xl flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:border-[#FF5A5F] hover:shadow-[0_0_30px_rgba(255,30,39,0.35)] transition-all duration-300 group"
         >
-          <h3 className="text-base sm:text-lg font-semibold uppercase tracking-[0.18em] text-glossy-gold mb-3">
-            Sold Products
+          <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-glossy-gold mb-3 group-hover:scale-105 transition-transform">
+            In Stock
           </h3>
-          <p className="text-3xl sm:text-4xl font-bold text-glossy-gold">
-            {data.soldProducts}
+          <p className="text-3xl sm:text-4xl font-extrabold text-glossy-gold tracking-wider drop-shadow-[0_2px_12px_rgba(255,30,39,0.3)]">
+            {data.inStockCount}
           </p>
         </div>
 
-        {/* 3. Review (5 Stars — initially empty, fills up with customer review average) */}
+        {/* 3. Product Category (Total number of product categories) */}
         <div
           style={{
-            backgroundColor: "#111114",
+            background:
+              "radial-gradient(ellipse at top, rgba(255, 30, 39, 0.12), transparent 70%), #111114",
             border: "1.5px solid rgba(255, 30, 39, 0.55)",
-            boxShadow: "0 0 18px rgba(255, 30, 39, 0.18)",
+            boxShadow:
+              "0 0 24px rgba(255, 30, 39, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.08)",
           }}
-          className="p-6 flex flex-col items-center justify-center text-center"
+          className="p-7 rounded-2xl flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:border-[#FF5A5F] hover:shadow-[0_0_30px_rgba(255,30,39,0.35)] transition-all duration-300 group"
         >
-          <h3 className="text-base sm:text-lg font-semibold uppercase tracking-[0.18em] text-glossy-gold mb-3">
+          <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-glossy-gold mb-3 group-hover:scale-105 transition-transform">
+            Product Category
+          </h3>
+          <p className="text-3xl sm:text-4xl font-extrabold text-glossy-gold tracking-wider drop-shadow-[0_2px_12px_rgba(255,30,39,0.3)]">
+            {data.categoriesCount}
+          </p>
+        </div>
+
+        {/* 4. Review (5 Stars — initially empty, fills up with customer review average) */}
+        <div
+          style={{
+            background:
+              "radial-gradient(ellipse at top, rgba(255, 30, 39, 0.12), transparent 70%), #111114",
+            border: "1.5px solid rgba(255, 30, 39, 0.55)",
+            boxShadow:
+              "0 0 24px rgba(255, 30, 39, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.08)",
+          }}
+          className="p-7 rounded-2xl flex flex-col items-center justify-center text-center hover:-translate-y-1 hover:border-[#FF5A5F] hover:shadow-[0_0_30px_rgba(255,30,39,0.35)] transition-all duration-300 group"
+        >
+          <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-glossy-gold mb-4 group-hover:scale-105 transition-transform">
             Review
           </h3>
           <div

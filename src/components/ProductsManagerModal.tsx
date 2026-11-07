@@ -176,10 +176,6 @@ export default function ProductsManagerModal({
   } | null>(null);
   const [enlargedZoomed, setEnlargedZoomed] = useState<boolean>(false);
 
-  // Studio Clean in-progress tracking state (key: `${draftId}-${imageIndex}`)
-  const [cleaningMap, setCleaningMap] = useState<Record<string, boolean>>({});
-  const [cleaningMsg, setCleaningMsg] = useState<string | null>(null);
-
   // Multi-product drafts array so Admin can add as many products as they want in a single time
   const [drafts, setDrafts] = useState<ProductDraft[]>([
     createEmptyDraft(categorySlug || "", defaultBrand || ""),
@@ -320,62 +316,6 @@ export default function ProductsManagerModal({
       ...d,
       images: d.images.filter((_, idx) => idx !== imageIdx),
     }));
-  };
-
-  /**
-   * Deeply cleans an uploaded image using the local AI Studio Engine:
-   * - Segments & removes dirty/cluttered backgrounds
-   * - Strips watermarks & perimeter text
-   * - Auto-detects transparency:
-   *     • If transparent (visor, fluid, glass) -> mounts on sleek dark glossy studio backdrop
-   *     • If solid (parts, oils, accessories) -> mounts on clean shiny white studio backdrop with soft floor shadow
-   */
-  const handleAutoCleanStudioImage = async (
-    draftId: string,
-    imageIdx: number,
-    bgMode: "auto" | "white" | "dark" | "transparent" = "auto",
-    e?: React.MouseEvent
-  ) => {
-    if (e) e.stopPropagation();
-    const draft = drafts.find((d) => d.draftId === draftId);
-    if (!draft || !draft.images[imageIdx]) return;
-
-    const key = `${draftId}-${imageIdx}`;
-    setCleaningMap((prev) => ({ ...prev, [key]: true }));
-    setCleaningMsg(
-      "AI Studio is isolating product, removing background & watermarks, and creating polished studio backdrop..."
-    );
-
-    try {
-      const res = await fetch("/api/image-studio-clean", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image: draft.images[imageIdx],
-          backgroundMode: bgMode,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.cleanedImage) {
-        setError(data.error || "Failed to studio clean image.");
-      } else {
-        updateDraft(draftId, (d) => {
-          const nextImages = [...d.images];
-          nextImages[imageIdx] = data.cleanedImage;
-          return { ...d, images: nextImages };
-        });
-        const modeUsed = data.backgroundUsed || (data.isTranslucent ? "shiny dark" : "shiny white");
-        setSuccessMsg(
-          `Image cleaned successfully! Applied ${modeUsed} studio backdrop (${data.isTranslucent ? "Transparent Product Detected" : "Solid Product Detected"}).`
-        );
-      }
-    } catch {
-      setError("Network or processing error while studio cleaning image.");
-    } finally {
-      setCleaningMap((prev) => ({ ...prev, [key]: false }));
-      setCleaningMsg(null);
-    }
   };
 
   const handleUpdateDraftFieldSetting = <K extends keyof ProductFieldSettings>(
@@ -963,126 +903,41 @@ export default function ProductsManagerModal({
                       </div>
 
                       {draft.images.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-[#0B0B0C] border border-[#00D4FF]/35">
-                          {draft.images.map((imgSrc, idx) => {
-                            const isCleaning = Boolean(
-                              cleaningMap[`${draft.draftId}-${idx}`]
-                            );
-
-                            return (
-                              <div
-                                key={idx}
-                                className="relative group bg-[#141417] border border-[#00D4FF]/40 hover:border-[#FF1E27] overflow-hidden flex flex-col justify-between transition-all"
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 p-3 bg-[#0B0B0C] border border-[#00D4FF]/35">
+                          {draft.images.map((imgSrc, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                setEnlargedDraftImage({
+                                  draftId: draft.draftId,
+                                  imageIndex: idx,
+                                });
+                                setEnlargedZoomed(false);
+                              }}
+                              title="Click to enlarge image in popup window"
+                              className="relative group h-28 bg-[#141417] border border-[#00D4FF]/40 hover:border-[#FF1E27] overflow-hidden flex items-center justify-center cursor-pointer transition-all"
+                            >
+                              <img
+                                src={imgSrc}
+                                alt={`Product preview ${idx + 1}`}
+                                className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                              />
+                              <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[10px] uppercase tracking-wider text-center py-0.5 text-glossy-gold">
+                                🔍 Click to Enlarge
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveDraftImage(draft.draftId, idx);
+                                }}
+                                title="Remove image"
+                                className="absolute top-1 right-1 w-6 h-6 bg-black/85 border border-red-500 text-red-300 text-xs flex items-center justify-center cursor-pointer"
                               >
-                                <div
-                                  onClick={() => {
-                                    setEnlargedDraftImage({
-                                      draftId: draft.draftId,
-                                      imageIndex: idx,
-                                    });
-                                    setEnlargedZoomed(false);
-                                  }}
-                                  title="Click to enlarge image in popup window"
-                                  className="h-28 w-full flex items-center justify-center p-1.5 cursor-pointer relative"
-                                >
-                                  <img
-                                    src={imgSrc}
-                                    alt={`Product preview ${idx + 1}`}
-                                    className="w-full h-full object-contain group-hover:scale-105 transition-transform"
-                                  />
-
-                                  {isCleaning && (
-                                    <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center text-center p-2 z-20">
-                                      <span className="text-xs text-glossy-gold font-bold animate-pulse">
-                                        ✨ Studio Cleaning...
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[10px] uppercase tracking-wider text-center py-0.5 text-glossy-gold">
-                                    🔍 Click to Enlarge
-                                  </span>
-
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveDraftImage(draft.draftId, idx);
-                                    }}
-                                    title="Remove image"
-                                    className="absolute top-1 right-1 w-6 h-6 bg-black/85 border border-red-500 text-red-300 text-xs flex items-center justify-center cursor-pointer z-10"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-
-                                {/* Free AI Studio Deep Clean Button with Background Color Options */}
-                                <div className="p-1.5 bg-[#0A0A0C] border-t border-[#00D4FF]/25 flex flex-col gap-1">
-                                  <div className="flex items-center gap-1">
-                                    <button
-                                      type="button"
-                                      disabled={isCleaning}
-                                      onClick={(e) =>
-                                        handleAutoCleanStudioImage(
-                                          draft.draftId,
-                                          idx,
-                                          "white",
-                                          e
-                                        )
-                                      }
-                                      title="Clean image onto pure spotless white background"
-                                      style={{
-                                        border: "1px solid rgba(255, 255, 255, 0.45)",
-                                      }}
-                                      className="flex-1 py-1 px-1 bg-[#1A1A1E] hover:bg-[#25252A] text-[9.5px] font-bold uppercase tracking-wider text-white transition-colors cursor-pointer text-center"
-                                    >
-                                      ⚪ Clean White
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      disabled={isCleaning}
-                                      onClick={(e) =>
-                                        handleAutoCleanStudioImage(
-                                          draft.draftId,
-                                          idx,
-                                          "dark",
-                                          e
-                                        )
-                                      }
-                                      title="Clean image onto clean obsidian black background"
-                                      style={{
-                                        border: "1px solid rgba(255, 30, 39, 0.65)",
-                                      }}
-                                      className="flex-1 py-1 px-1 bg-[#141417] hover:bg-[#1D1D22] text-[9.5px] font-bold uppercase tracking-wider text-glossy-gold transition-colors cursor-pointer text-center"
-                                    >
-                                      ⚫ Clean Black
-                                    </button>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    disabled={isCleaning}
-                                    onClick={(e) =>
-                                      handleAutoCleanStudioImage(
-                                        draft.draftId,
-                                        idx,
-                                        "auto",
-                                        e
-                                      )
-                                    }
-                                    title="Auto-detect product transparency and apply clean background"
-                                    style={{
-                                      border: "1px solid rgba(0, 212, 255, 0.45)",
-                                    }}
-                                    className="w-full py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#7DF9FF] hover:bg-[#00D4FF]/10 transition-colors cursor-pointer text-center"
-                                  >
-                                    {isCleaning ? "Cleaning..." : "✨ Auto Clean"}
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
+                                ✕
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       ) : (
                         <label className="w-full py-5 bg-[#0B0B0C] border border-dashed border-[#00D4FF]/40 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-[#141113] transition-colors">
@@ -2639,77 +2494,14 @@ export default function ProductsManagerModal({
                     </h3>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* Free AI Studio Clean Trigger directly from Enlarged Popup with Pure Color Choices */}
-                    <button
-                      type="button"
-                      disabled={Boolean(
-                        cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
-                      )}
-                      onClick={(e) =>
-                        handleAutoCleanStudioImage(
-                          activeDraft.draftId,
-                          safeIdx,
-                          "white",
-                          e
-                        )
-                      }
-                      title="Clean onto pure, bright studio white background"
-                      style={{ border: "1px solid rgba(255, 255, 255, 0.5)" }}
-                      className="px-2.5 py-1.5 bg-[#1C1C20] hover:bg-[#2A2A30] text-xs font-bold uppercase tracking-wider text-white cursor-pointer"
-                    >
-                      ⚪ Clean White
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={Boolean(
-                        cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
-                      )}
-                      onClick={(e) =>
-                        handleAutoCleanStudioImage(
-                          activeDraft.draftId,
-                          safeIdx,
-                          "dark",
-                          e
-                        )
-                      }
-                      title="Clean onto deep, clean obsidian black background"
-                      style={{ border: "1px solid rgba(255, 30, 39, 0.65)" }}
-                      className="px-2.5 py-1.5 bg-[#141417] hover:border-[#FF6B6B] text-xs font-bold uppercase tracking-wider text-glossy-gold cursor-pointer"
-                    >
-                      ⚫ Clean Black
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={Boolean(
-                        cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
-                      )}
-                      onClick={(e) =>
-                        handleAutoCleanStudioImage(
-                          activeDraft.draftId,
-                          safeIdx,
-                          "auto",
-                          e
-                        )
-                      }
-                      title="Auto-detect product transparency and apply clean background"
-                      style={{ border: "1px solid rgba(0, 212, 255, 0.65)" }}
-                      className="px-2.5 py-1.5 bg-[#0B0B0C] hover:border-[#7DF9FF] text-xs font-bold uppercase tracking-wider text-[#7DF9FF] cursor-pointer"
-                    >
-                      {cleaningMap[`${activeDraft.draftId}-${safeIdx}`]
-                        ? "Cleaning..."
-                        : "✨ Auto Clean"}
-                    </button>
-
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => setEnlargedZoomed((z) => !z)}
                       style={{ border: "1px solid rgba(0, 212, 255, 0.65)" }}
                       className="px-3 py-1.5 bg-[#0B0B0C] hover:border-[#7DF9FF] text-xs font-bold uppercase tracking-wider text-glossy-gold cursor-pointer"
                     >
-                      {enlargedZoomed ? "🔍 1x Fit" : "🔍 2x Zoom"}
+                      {enlargedZoomed ? "🔍 1x Fit View" : "🔍 2x Zoom In"}
                     </button>
 
                     <button

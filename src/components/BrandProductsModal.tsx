@@ -331,7 +331,7 @@ export default function BrandProductsModal({
                         border: "1.5px solid rgba(255, 30, 39, 0.55)",
                         boxShadow: "0 0 18px rgba(255, 30, 39, 0.16)",
                       }}
-                      className="flex flex-col overflow-hidden hover:border-[#FF6B6B] transition-all cursor-pointer group"
+                      className="flex flex-col rounded-2xl overflow-hidden hover:border-[#FF6B6B] hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(255,30,39,0.3)] transition-all duration-300 cursor-pointer group"
                     >
                       {/* Product Image */}
                       <div className="w-full h-52 bg-[#141417] border-b border-[#00D4FF]/35 flex items-center justify-center p-3 overflow-hidden">

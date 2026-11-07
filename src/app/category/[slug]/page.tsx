@@ -59,9 +59,13 @@ export default function CategoryPage({
       const meData = await meRes.json();
 
       if (Array.isArray(catData?.categories)) {
+        const decoded = decodeURIComponent(slug).toLowerCase();
+        const normalized = decoded.replace(/\s+/g, "-");
         const matched = catData.categories.find(
           (c: { slug: string; label: string }) =>
-            c.slug.toLowerCase() === slug.toLowerCase()
+            c.slug.toLowerCase() === slug.toLowerCase() ||
+            c.slug.toLowerCase() === decoded ||
+            c.slug.toLowerCase() === normalized
         );
         if (matched) setCategoryLabel(matched.label);
       }
@@ -280,7 +284,7 @@ export default function CategoryPage({
                   border: "1.5px solid rgba(255, 30, 39, 0.55)",
                   boxShadow: "0 0 18px rgba(255, 30, 39, 0.16)",
                 }}
-                className="flex flex-col overflow-hidden hover:border-[#FF6B6B] transition-all cursor-pointer group"
+                className="flex flex-col rounded-2xl overflow-hidden hover:border-[#FF6B6B] hover:-translate-y-1 hover:shadow-[0_12px_30px_rgba(255,30,39,0.3)] transition-all duration-300 cursor-pointer group"
               >
                 {/* Product Image Box */}
                 <div className="w-full h-56 bg-[#0B0B0C] border-b border-[#00D4FF]/35 flex items-center justify-center p-3 overflow-hidden">
@@ -319,11 +323,10 @@ export default function CategoryPage({
                         onClick={(e) => isAdmin && e.stopPropagation()}
                       >
                         <span
-                          className={`text-xs font-bold uppercase tracking-wider ${
-                            currentStock > 0
+                          className={`text-xs font-bold uppercase tracking-wider ${currentStock > 0
                               ? "text-glossy-gold"
                               : "text-red-300"
-                          }`}
+                            }`}
                         >
                           {fs.stockQuantityLabel || "Available Stock"}:{" "}
                           {currentStock}
@@ -546,11 +549,10 @@ export default function CategoryPage({
                             key={idx}
                             type="button"
                             onClick={() => setActiveImageIdx(idx)}
-                            className={`w-20 h-20 bg-[#0B0B0C] border-2 p-1.5 shrink-0 cursor-pointer transition-all ${
-                              activeImageIdx === idx
+                            className={`w-20 h-20 bg-[#0B0B0C] border-2 p-1.5 shrink-0 cursor-pointer transition-all ${activeImageIdx === idx
                                 ? "border-[#FF1E27] scale-105"
                                 : "border-[#00D4FF]/30 opacity-65 hover:opacity-100"
-                            }`}
+                              }`}
                           >
                             <img
                               src={imgUrl}
@@ -601,11 +603,10 @@ export default function CategoryPage({
 
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <span
-                            className={`text-xl font-extrabold ${
-                              selectedStock > 0
+                            className={`text-xl font-extrabold ${selectedStock > 0
                                 ? "text-glossy-gold"
                                 : "text-red-300"
-                            }`}
+                              }`}
                           >
                             {selectedStock}{" "}
                             <span className="text-xs font-normal uppercase">

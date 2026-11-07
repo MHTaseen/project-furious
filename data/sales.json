@@ -1,1 +1,36 @@
-[]
+[
+  {
+    "id": "sale-1793636677867-247e9b",
+    "productId": "",
+    "productImage": "",
+    "productName": "MX Series",
+    "productCode": "223123",
+    "uidNumber": "23123",
+    "modelNumber": "123123",
+    "categoryLabel": "Parts",
+    "description": "",
+    "customFields": [],
+    "price": 20000,
+    "priceDisplay": "20000",
+    "quantity": 4,
+    "soldDate": "2026-10-02",
+    "createdAt": "2026-11-02T16:24:37.870Z"
+  },
+  {
+    "id": "sale-1793627409814-769293",
+    "productId": "",
+    "productImage": "/uploads/products/prod-1793627516143-adeadb30.jpg",
+    "productName": "Engine Oil",
+    "productCode": "111",
+    "uidNumber": "123",
+    "modelNumber": "12345",
+    "categoryLabel": "Engine Oil",
+    "description": "",
+    "customFields": [],
+    "price": 2500,
+    "priceDisplay": "2500",
+    "quantity": 2,
+    "soldDate": "2026-11-02",
+    "createdAt": "2026-11-02T13:50:09.815Z"
+  }
+]

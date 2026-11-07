@@ -1,25 +1,5 @@
 [
   {
-    "id": "cat-1",
-    "label": "Helmets",
-    "slug": "helmets"
-  },
-  {
-    "id": "cat-2",
-    "label": "Engine Oil",
-    "slug": "engine-oil"
-  },
-  {
-    "id": "cat-3",
-    "label": "Fog Lights",
-    "slug": "fog-lights"
-  },
-  {
-    "id": "cat-4",
-    "label": "Head Lights",
-    "slug": "head-lights"
-  },
-  {
     "id": "cat-5",
     "label": "Wind Breakers",
     "slug": "wind-breakers"

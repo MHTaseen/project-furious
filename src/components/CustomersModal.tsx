@@ -83,8 +83,8 @@ export default function CustomersModal({
     setError(null);
     setSuccessMsg(null);
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 digits/characters.");
+    if (password.length !== 6) {
+      setError("Password must be exactly 6 characters.");
       return;
     }
 
@@ -319,15 +319,16 @@ export default function CustomersModal({
 
             <div>
               <label className="block text-xs font-medium uppercase tracking-wider text-glossy-gold mb-1.5">
-                Password (6 digits must)
+                Password (exactly 6 characters)
               </label>
               <div className="relative flex items-center">
                 <input
                   type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
+                  maxLength={6}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value.slice(0, 6))}
                   style={{ paddingRight: "2.75rem" }}
                   className="auth-input w-full px-3.5 py-2.5 bg-[#0B0B0C] border border-[#00D4FF]/45 focus:border-[#7DF9FF] focus:outline-none text-sm"
                 />

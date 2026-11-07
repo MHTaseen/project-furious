@@ -130,6 +130,26 @@ export async function PUT(request: Request) {
       };
     }
 
+    if (body.policies && typeof body.policies === "object") {
+      const p = body.policies;
+      current.policies = {
+        lastUpdated:
+          typeof p.lastUpdated === "string" && p.lastUpdated.trim()
+            ? p.lastUpdated.trim()
+            : new Date().toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              }),
+        sections: Array.isArray(p.sections)
+          ? p.sections.map((s: { title?: string; description?: string }) => ({
+              title: typeof s.title === "string" ? s.title.trim() : "",
+              description:
+                typeof s.description === "string" ? s.description.trim() : "",
+            }))
+          : current.policies?.sections || [],
+      };
+    }
+
     writeSiteInfo(current);
     return NextResponse.json(
       { ...current, message: "Saved successfully." },

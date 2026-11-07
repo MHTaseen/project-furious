@@ -29,13 +29,49 @@ export async function GET(request: Request) {
   const id = searchParams.get("id");
   const allBookings = readBookings();
 
+  const noCacheHeaders = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  };
+
   // Single booking lookup (for /notifications/[id] detail page)
   if (id) {
     const found = allBookings.find((b) => b.id === id);
     if (!found) {
-      return NextResponse.json({ error: "Booking not found." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Booking not found." },
+        { status: 404, headers: noCacheHeaders }
+      );
     }
-    return NextResponse.json({ booking: found }, { status: 200 });
+
+    // Security Isolation: User MUST be authenticated to view a booking notification
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in to view this booking." },
+        { status: 401, headers: noCacheHeaders }
+      );
+    }
+
+    // Security Isolation: Only the booking creator or an admin may view this booking
+    const isOwner =
+      (found.customerId && found.customerId === user.id) ||
+      (found.customerPhone && found.customerPhone === user.phone) ||
+      (found.customerEmail &&
+        user.email &&
+        found.customerEmail.toLowerCase() === user.email.toLowerCase());
+
+    if (user.role !== "admin" && !isOwner) {
+      return NextResponse.json(
+        { error: "Access denied. You do not have permission to view this booking." },
+        { status: 403, headers: noCacheHeaders }
+      );
+    }
+
+    return NextResponse.json(
+      { booking: found },
+      { status: 200, headers: noCacheHeaders }
+    );
   }
 
   // Admin gets all non-dismissed bell notifications + unread count
@@ -48,7 +84,7 @@ export async function GET(request: Request) {
         allBookings,
         unreadCount,
       },
-      { status: 200 }
+      { status: 200, headers: noCacheHeaders }
     );
   }
 
@@ -64,11 +100,14 @@ export async function GET(request: Request) {
         bookings: myBookings,
         unreadCount: 0,
       },
-      { status: 200 }
+      { status: 200, headers: noCacheHeaders }
     );
   }
 
-  return NextResponse.json({ bookings: [], unreadCount: 0 }, { status: 200 });
+  return NextResponse.json(
+    { bookings: [], unreadCount: 0 },
+    { status: 200, headers: noCacheHeaders }
+  );
 }
 
 export async function POST(request: Request) {
@@ -258,6 +297,21 @@ export async function PUT(request: Request) {
         );
       }
 
+      if (user.role !== "admin") {
+        const isOwner =
+          (allBookings[idx].customerId && allBookings[idx].customerId === user.id) ||
+          (allBookings[idx].customerPhone && allBookings[idx].customerPhone === user.phone) ||
+          (allBookings[idx].customerEmail &&
+            user.email &&
+            allBookings[idx].customerEmail.toLowerCase() === user.email.toLowerCase());
+        if (!isOwner) {
+          return NextResponse.json(
+            { error: "Access denied. You do not have permission to reply to this booking." },
+            { status: 403 }
+          );
+        }
+      }
+
       const prevStatus = allBookings[idx].status;
       const nextStatus: "pending" | "confirmed" | "cancelled" =
         status === "confirmed" || status === "cancelled" ? status : "pending";
@@ -325,6 +379,21 @@ export async function PUT(request: Request) {
           { error: "Booking not found." },
           { status: 404 }
         );
+      }
+
+      if (user.role !== "admin") {
+        const isOwner =
+          (allBookings[idx].customerId && allBookings[idx].customerId === user.id) ||
+          (allBookings[idx].customerPhone && allBookings[idx].customerPhone === user.phone) ||
+          (allBookings[idx].customerEmail &&
+            user.email &&
+            allBookings[idx].customerEmail.toLowerCase() === user.email.toLowerCase());
+        if (!isOwner) {
+          return NextResponse.json(
+            { error: "Access denied. You do not have permission to reply to this booking." },
+            { status: 403 }
+          );
+        }
       }
 
       const newReply: BookingReply = {

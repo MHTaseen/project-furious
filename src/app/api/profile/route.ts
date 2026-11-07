@@ -36,9 +36,9 @@ export async function PUT(request: Request) {
       );
     }
 
-    if (password && password.length < 6) {
+    if (password && password.length !== 6) {
       return NextResponse.json(
-        { error: "Password must be at least 6 digits/characters." },
+        { error: "Password must be exactly 6 characters." },
         { status: 400 }
       );
     }
@@ -81,7 +81,8 @@ export async function PUT(request: Request) {
       role: users[idx].role,
     };
 
-    const newToken = createSessionToken(updatedPublicUser);
+    const currentVersion = users[idx].sessionVersion || 1;
+    const newToken = createSessionToken(updatedPublicUser, currentVersion);
     const response = NextResponse.json(
       {
         user: {
@@ -93,12 +94,12 @@ export async function PUT(request: Request) {
       { status: 200 }
     );
 
+    // True browser session cookie (no maxAge/expires): automatically cleared by browser on close
     response.cookies.set("furious_session", newToken, {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
     });
 
     return response;

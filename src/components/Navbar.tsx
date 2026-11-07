@@ -22,13 +22,23 @@ export default function Navbar() {
   const [isStatisticsOpen, setIsStatisticsOpen] = useState(false);
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
 
-  useEffect(() => {
+  const refreshUser = () => {
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
-        if (data?.user) setUser(data.user);
+        setUser(data?.user || null);
       })
-      .catch(() => {});
+      .catch(() => {
+        setUser(null);
+      });
+  };
+
+  useEffect(() => {
+    refreshUser();
+    window.addEventListener("furious-auth-change", refreshUser);
+    return () => {
+      window.removeEventListener("furious-auth-change", refreshUser);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -81,11 +91,11 @@ export default function Navbar() {
           </Link>
 
           {/* Right-most corner: Navigation & Account Controls */}
-          <div className="flex items-center gap-2.5 sm:gap-4 flex-wrap justify-end">
+          <div className="flex items-center gap-2.5 sm:gap-3.5 flex-wrap justify-end">
             <button
               type="button"
               onClick={() => setIsAboutOpen(true)}
-              className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
             >
               About US
             </button>
@@ -93,7 +103,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setIsContactOpen(true)}
-              className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
             >
               Contact
             </button>
@@ -106,7 +116,7 @@ export default function Navbar() {
                     <button
                       type="button"
                       onClick={() => setIsProductsOpen(true)}
-                      className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+                      className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
                     >
                       Products
                     </button>
@@ -114,7 +124,7 @@ export default function Navbar() {
                     <button
                       type="button"
                       onClick={() => setIsStatisticsOpen(true)}
-                      className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+                      className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
                     >
                       Statistics
                     </button>
@@ -122,7 +132,7 @@ export default function Navbar() {
                     <button
                       type="button"
                       onClick={() => setIsCustomersOpen(true)}
-                      className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+                      className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
                     >
                       Customers
                     </button>
@@ -133,7 +143,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => setIsProfileOpen(true)}
-                  className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
                 >
                   My Profile
                 </button>
@@ -142,7 +152,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
                 >
                   Log Out
                 </button>
@@ -151,7 +161,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setIsAuthOpen(true)}
-                className="px-4 py-2 text-xs sm:text-sm font-medium tracking-wider uppercase bg-[#141417] border border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_8px_rgba(0,212,255,0.25),inset_0_1px_1px_rgba(125,249,255,0.2)] text-glossy-gold transition-colors cursor-pointer"
+                className="px-4 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase rounded-lg bg-[#141417] border-[1.1px] border-[#00D4FF]/55 hover:border-[#7DF9FF] shadow-[0_0_10px_rgba(255,30,39,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_0_16px_rgba(255,30,39,0.45)] text-glossy-gold hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
               >
                 Reg/Sign In
               </button>

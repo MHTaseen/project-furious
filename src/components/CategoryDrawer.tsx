@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ProductsManagerModal from "./ProductsManagerModal";
+import ProductSearchModal from "./ProductSearchModal";
 
 interface BookingReplyItem {
   id: string;
@@ -64,6 +65,7 @@ export default function CategoryDrawer() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isBellOpen, setIsBellOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [categories, setCategories] =
     useState<CategoryItem[]>(INITIAL_CATEGORIES);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -345,8 +347,45 @@ export default function CategoryDrawer() {
           </svg>
         </button>
 
-        {/* Square Notification Bell Button (right-most) */}
-        <div className="relative">
+        {/* Right Action Icons: Square Search Button (next to Notification Bell) & Square Notification Bell */}
+        <div className="flex items-center gap-2.5">
+          {/* Square Search Button */}
+          <button
+            type="button"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="Search Products"
+            title="Search Products"
+            className="category-square-btn"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="7"
+                stroke="url(#logoThemeGrad)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M20 20L16.5 16.5"
+                stroke="url(#logoThemeGrad)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+
+          {/* Square Notification Bell Button (right-most) */}
+          <div className="relative">
           <button
             type="button"
             onClick={handleToggleBell}
@@ -535,6 +574,7 @@ export default function CategoryDrawer() {
             </>
           )}
         </div>
+        </div>
       </div>
 
       {/* Backdrop Overlay when Drawer is Open */}
@@ -697,6 +737,13 @@ export default function CategoryDrawer() {
         onClose={() => setActiveCategoryModal(null)}
         categorySlug={activeCategoryModal?.slug || null}
         categoryLabel={activeCategoryModal?.label || null}
+      />
+
+      {/* Universal Real-Time Product Search Modal */}
+      <ProductSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        isAdmin={isAdmin}
       />
     </>
   );
